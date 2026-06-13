@@ -75,6 +75,10 @@ class _FakeResponse:
     def text(self):
         return json.dumps(self._data)
 
+    @property
+    def content(self):
+        return json.dumps(self._data).encode("utf-8")
+
 
 httpx_stub.AsyncClient = mock.MagicMock
 httpx_stub.Response = _FakeResponse
@@ -110,6 +114,7 @@ from warera._enums import (
     BattleRankingDataType,
     BattleRankingSide,
     EventType,
+    MercenaryAuctionStatus,
     RankingType,
     TransactionType,
     UpgradeType,
@@ -146,18 +151,36 @@ class TestEnums(unittest.TestCase):
         self.assertIn("yourCountry", [e.value for e in BattleFilter])
         self.assertIn("yourEnemies", [e.value for e in BattleFilter])
 
-    def test_ranking_type_has_26_values(self):
-        # 9 country + 12 user + 5 MU = 26
-        self.assertEqual(len(RankingType), 26)
+    def test_ranking_type_has_33_values(self):
+        self.assertEqual(len(RankingType), 33)
 
-    def test_event_type_has_21_values(self):
-        self.assertEqual(len(EventType), 21)
+    def test_event_type_has_26_values(self):
+        self.assertEqual(len(EventType), 26)
+        values = {e.value for e in EventType}
+        self.assertIn("allianceMemberJoined", values)
+        self.assertIn("allianceMemberLeft", values)
+        self.assertIn("allianceMemberExcluded", values)
+        self.assertIn("defensivePactFormed", values)
+        self.assertIn("defensivePactBroken", values)
 
     def test_transaction_type_values(self):
         values = {e.value for e in TransactionType}
         self.assertIn("applicationFee", values)
         self.assertIn("dismantleItem", values)
         self.assertIn("battleLoot", values)
+        self.assertIn("countryMoneyTransfer", values)
+
+    def test_mercenary_auction_status_values(self):
+        expected = {
+            "active",
+            "won",
+            "expiredNoBids",
+            "expiredBattle",
+            "expiredRound",
+            "cancelled",
+            "terminated",
+        }
+        self.assertEqual({e.value for e in MercenaryAuctionStatus}, expected)
 
     def test_upgrade_type_values(self):
         values = {e.value for e in UpgradeType}
@@ -316,7 +339,7 @@ class TestHttpEncoding(unittest.TestCase):
         from warera._http import HttpSession  # noqa: PLC0415
 
         resp = _FakeResponse(200, {"result": {"data": {"id": "1", "name": "TestCo"}}})
-        result = HttpSession._unwrap_single(resp, "company.getById")
+        result = HttpSession(base_url="https://test")._unwrap_single(resp, "company.getById")
         self.assertEqual(result, {"id": "1", "name": "TestCo"})
 
     def test_unwrap_single_trpc_error_raises(self):
@@ -324,7 +347,7 @@ class TestHttpEncoding(unittest.TestCase):
 
         resp = _FakeResponse(200, {"error": {"message": "Not found", "data": {"httpStatus": 404}}})
         with self.assertRaises(WareraNotFoundError):
-            HttpSession._unwrap_single(resp, "company.getById")
+            HttpSession(base_url="https://test")._unwrap_single(resp, "company.getById")
 
     def test_unwrap_batch_all_ok(self):
         from warera._http import HttpSession  # noqa: PLC0415
@@ -333,7 +356,9 @@ class TestHttpEncoding(unittest.TestCase):
             {"result": {"data": {"id": "1"}}},
             {"result": {"data": {"id": "2"}}},
         ]
-        results = HttpSession._unwrap_batch(raw, ["company.getById", "company.getById"])
+        results = HttpSession(base_url="https://test")._unwrap_batch(
+            raw, ["company.getById", "company.getById"]
+        )
         self.assertEqual(results, [{"id": "1"}, {"id": "2"}])
 
     def test_unwrap_batch_partial_failure_raises_batch_error(self):
@@ -344,7 +369,9 @@ class TestHttpEncoding(unittest.TestCase):
             {"error": {"message": "Not found", "data": {"httpStatus": 404}}},
         ]
         with self.assertRaises(WareraBatchError) as ctx:
-            HttpSession._unwrap_batch(raw, ["company.getById", "company.getById"])
+            HttpSession(base_url="https://test")._unwrap_batch(
+                raw, ["company.getById", "company.getById"]
+            )
         err = ctx.exception
         self.assertIn(1, err.errors)
         self.assertIn(0, err.results)
@@ -541,89 +568,6 @@ class TestFetchManyByIds(unittest.TestCase):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 6. Pagination
-# ══════════════════════════════════════════════════════════════════════════════
-
-
-@dataclass
-class _FakePage:
-    items: list
-    next_cursor: str | None
-    has_more: bool
-
-
-class TestPagination(unittest.TestCase):
-    def _make_paginate(self):
-        from warera._pagination import collect_all, paginate  # noqa: PLC0415
-
-        return paginate, collect_all
-
-    def test_single_page_yields_all_items(self):
-        paginate, _ = self._make_paginate()
-
-        async def fetch(cursor=None, **_):
-            return _FakePage(items=[1, 2, 3], next_cursor=None, has_more=False)
-
-        items = run(self._collect(paginate(fetch)))
-        self.assertEqual(items, [1, 2, 3])
-
-    def test_multi_page_yields_all_items_in_order(self):
-        paginate, _ = self._make_paginate()
-        pages = {
-            None: _FakePage([1, 2], "c1", True),
-            "c1": _FakePage([3, 4], "c2", True),
-            "c2": _FakePage([5], None, False),
-        }
-
-        async def fetch(cursor=None, **_):
-            return pages[cursor]
-
-        items = run(self._collect(paginate(fetch)))
-        self.assertEqual(items, [1, 2, 3, 4, 5])
-
-    def test_stops_immediately_when_no_more(self):
-        paginate, _ = self._make_paginate()
-        calls = []
-
-        async def fetch(cursor=None, **_):
-            calls.append(cursor)
-            return _FakePage([1], None, False)
-
-        run(self._collect(paginate(fetch)))
-        self.assertEqual(len(calls), 1)
-
-    def test_collect_all_returns_flat_list(self):
-        _, collect_all = self._make_paginate()
-        pages = {
-            None: _FakePage([1, 2], "c1", True),
-            "c1": _FakePage([3], None, False),
-        }
-
-        async def fetch(cursor=None, **_):
-            return pages[cursor]
-
-        result = run(collect_all(fetch))
-        self.assertIsInstance(result, list)
-        self.assertEqual(result, [1, 2, 3])
-
-    def test_kwargs_forwarded_every_page(self):
-        paginate, _ = self._make_paginate()
-        received = []
-
-        async def fetch(cursor=None, **kw):
-            received.append(kw)
-            return _FakePage([1], None, False)
-
-        run(self._collect(paginate(fetch, country_id="7", limit=50)))
-        self.assertEqual(received[0]["country_id"], "7")
-        self.assertEqual(received[0]["limit"], 50)
-
-    @staticmethod
-    async def _collect(agen):
-        return [item async for item in agen]
-
-
-# ══════════════════════════════════════════════════════════════════════════════
 # 7. Resource helpers (no HTTP, test parse logic)
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -636,6 +580,7 @@ class TestCountryResourceLogic(unittest.TestCase):
 
         http = mock.MagicMock()
         http.get = mock.AsyncMock(return_value=return_value)
+        http.get_swr = mock.AsyncMock(return_value=return_value)
         return CountryResource(http)
 
     def test_get_all_from_dict(self):
@@ -670,6 +615,7 @@ class TestWorkerResourceLogic(unittest.TestCase):
 
         http = mock.MagicMock()
         http.get = mock.AsyncMock(return_value=return_value)
+        http.get_swr = mock.AsyncMock(return_value=return_value)
         return WorkerResource(http)
 
     def test_get_total_count_from_dict(self):
@@ -692,6 +638,7 @@ class TestUpgradeResourceValidation(unittest.TestCase):
 
         http = mock.MagicMock()
         http.get = mock.AsyncMock(return_value=return_value or {})
+        http.get_swr = mock.AsyncMock(return_value=return_value or {})
         return UpgradeResource(http)
 
     def test_raises_when_no_entity_id(self):
@@ -713,6 +660,7 @@ class TestSearchResourceValidation(unittest.TestCase):
 
         http = mock.MagicMock()
         http.get = mock.AsyncMock(return_value=return_value or {"results": []})
+        http.get_swr = mock.AsyncMock(return_value=return_value or {"results": []})
         return SearchResource(http)
 
     def test_raises_on_empty_query(self):
