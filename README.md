@@ -3,6 +3,7 @@
 [![PyPI version](https://badge.fury.io/py/warera-client.svg)](https://pypi.org/project/warera-client/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/warera-client?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=Downloads)](https://pepy.tech/projects/warera-client)
 
 > A robust, fully-typed, async-first Python client for the [WarEra](https://warera.io) tRPC API (v0.25.0-beta).
 > 
