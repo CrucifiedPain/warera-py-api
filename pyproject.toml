@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "warera-client"
-version = "0.2.1"
+version = "0.2.2"
 description = "A robust Python client for the WarEra tRPC API"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -35,14 +35,14 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/bipinkrish/warera-py-api"
-Repository = "https://github.com/bipinkrish/warera-py-api"
-Issues = "https://github.com/bipinkrish/warera-py-api/issues"
+Homepage = "https://github.com/warera-india/api-client-py"
+Repository = "https://github.com/warera-india/api-client-py"
+Issues = "https://github.com/warera-india/api-client-py/issues"
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
-    "pytest-asyncio>=0.23",
+    "pytest-asyncio>=0.24.0",
     "respx>=0.21",
     "ruff>=0.4",
     "mypy>=1.10",

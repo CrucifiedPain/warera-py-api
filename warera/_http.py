@@ -184,12 +184,13 @@ class _RateLimitState:
         if raw_remaining is not None:
             with contextlib.suppress(ValueError):
                 new_remaining = int(raw_remaining)
-                # Detect window refresh: remaining jumped up compared to
-                # what we last saw, meaning the server gave us a fresh window.
-                if self._prev_remaining is not None and new_remaining > self._prev_remaining:
+                if self._prev_remaining is None or new_remaining > self._prev_remaining:
                     self.window_refreshes += 1
-                self._prev_remaining = new_remaining
-                self.remaining = new_remaining
+                    self._prev_remaining = new_remaining
+                    self.remaining = new_remaining
+                else:
+                    self.remaining = min(self.remaining or new_remaining, new_remaining)
+                    self._prev_remaining = self.remaining
 
         if raw_reset is not None:
             with contextlib.suppress(ValueError):
@@ -230,7 +231,9 @@ class _RateLimitState:
                 if wait_secs > 0:
                     jitter = random.uniform(0.01, 0.5)
                     self.total_wait_seconds += wait_secs + jitter
-                    logger.warning(f"Rate limit exhausted. Sleeping for {wait_secs:.2f}s + {jitter:.2f}s jitter...")
+                    logger.warning(
+                        f"Rate limit exhausted. Sleeping for {wait_secs:.2f}s + {jitter:.2f}s jitter..."
+                    )
                     await asyncio.sleep(wait_secs + jitter)
                 # Reset state — next response will give us fresh values.
                 self.remaining = None
@@ -281,7 +284,8 @@ class HttpSession:
         self._on_retry = on_retry
         self._swr_cache = SWRCache()
         self._retryable_status_codes = frozenset(
-            retryable_status_codes if retryable_status_codes is not None 
+            retryable_status_codes
+            if retryable_status_codes is not None
             else {408, 409, 425, 429, 500, 502, 503, 504}
         )
 
@@ -396,7 +400,9 @@ class HttpSession:
         loop = asyncio.get_running_loop()
         fut = loop.create_future()
         self._auto_batch_queue.append((procedure, params, fut))
-        logger.debug(f"Queuing '{procedure}' for auto-batching (queue size: {len(self._auto_batch_queue)})")
+        logger.debug(
+            f"Queuing '{procedure}' for auto-batching (queue size: {len(self._auto_batch_queue)})"
+        )
 
         if self._auto_batch_task is None:
             self._auto_batch_task = loop.create_task(self._auto_batch_flush())
@@ -409,10 +415,12 @@ class HttpSession:
         Returns stale data instantly if available, while fetching fresh data in the background.
         """
         # Create a deterministic cache key
-        import json
         key_dict = {"p": procedure, "args": params}
-        key = json.dumps(key_dict, sort_keys=True)
-        
+        if _orjson is not None:
+            key = _orjson.dumps(key_dict, option=_orjson.OPT_SORT_KEYS).decode("utf-8")
+        else:
+            key = json.dumps(key_dict, sort_keys=True)
+
         async def fetcher() -> Any:
             return await self.get(procedure, params)
 
@@ -435,39 +443,47 @@ class HttpSession:
             proc, params, fut = queue[0]
             try:
                 res = await self._real_get(proc, params)
-                fut.set_result(res)
-            except Exception as e:
-                fut.set_exception(e)
-            return
-
-        procedures = [q[0] for q in queue]
-        inputs = [q[1] for q in queue]
-        futs = [q[2] for q in queue]
-
-        try:
-            results = await self.post_batch(procedures, inputs)
-            for fut, res in zip(futs, results, strict=True):
                 if not fut.done():
                     fut.set_result(res)
-        except WareraBatchError as exc:
-            for i, fut in enumerate(futs):
-                if fut.done():
-                    continue
-                if i in exc.errors:
-                    fut.set_exception(exc.errors[i])
-                elif i in exc.results:
-                    fut.set_result(exc.results[i])
-        except Exception as e:
-            for fut in futs:
+            except BaseException as e:
                 if not fut.done():
                     fut.set_exception(e)
+                if isinstance(e, asyncio.CancelledError):
+                    raise
+            return
+
+        for start_idx in range(0, len(queue), 50):
+            chunk = queue[start_idx : start_idx + 50]
+            procedures = [q[0] for q in chunk]
+            inputs = [q[1] for q in chunk]
+            futs = [q[2] for q in chunk]
+    
+            try:
+                results = await self.post_batch(procedures, inputs)
+                for fut, res in zip(futs, results, strict=True):
+                    if not fut.done():
+                        fut.set_result(res)
+            except WareraBatchError as exc:
+                for i, fut in enumerate(futs):
+                    if fut.done():
+                        continue
+                    if i in exc.errors:
+                        fut.set_exception(exc.errors[i])
+                    else:
+                        fut.set_result(exc.results.get(i))
+            except BaseException as e:
+                for fut in futs:
+                    if not fut.done():
+                        fut.set_exception(e)
+                if isinstance(e, asyncio.CancelledError):
+                    raise
 
     async def _real_get(self, procedure: str, params: dict[str, Any]) -> Any:
         await self._ensure_client()
 
         clean = {k: v for k, v in params.items() if v is not None}
         if _orjson is not None:
-            encoded = quote(_orjson.dumps(clean), safe="")
+            encoded = quote(_orjson.dumps(clean).decode("utf-8"), safe="")
         else:
             encoded = quote(json.dumps(clean, separators=(",", ":")), safe="")
         url = f"/{procedure}?input={encoded}"

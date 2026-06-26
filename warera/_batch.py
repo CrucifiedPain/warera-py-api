@@ -31,7 +31,7 @@ import asyncio
 from dataclasses import dataclass, field
 from typing import Any, Generic, TypeVar, cast
 
-from .exceptions import WareraBatchError, WareraError
+from .exceptions import WareraBatchError, WareraError, WareraNotFoundError
 
 T = TypeVar("T")
 
@@ -165,10 +165,11 @@ class BatchSession:
                     item._fail(exc.errors[i])
                 elif i in exc.results:
                     item._resolve(exc.results[i])
-        except WareraError as exc:
+        except Exception as exc:
             # Entire chunk failed (e.g. network error)
             for item in chunk:
-                item._fail(exc)
+                if not item._resolved:
+                    item._fail(exc if isinstance(exc, WareraError) else WareraError(str(exc)))
 
     async def __aenter__(self) -> BatchSession:
         return self
@@ -228,7 +229,17 @@ async def fetch_many_by_ids(
             try:
                 return cast(list[Any], await http.post_batch(procedures, inputs))
             except WareraBatchError as exc:
-                return [exc.results.get(i, None) for i in range(len(chunk))]
+                res: list[Any] = []
+                for i in range(len(chunk)):
+                    if i in exc.errors:
+                        err = exc.errors[i]
+                        if isinstance(err, WareraNotFoundError):
+                            res.append(None)
+                        else:
+                            raise err from exc
+                    else:
+                        res.append(exc.results.get(i))
+                return res
 
         if sem is not None:
             async with sem:

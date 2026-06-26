@@ -691,31 +691,9 @@ class TestClientAssembly(unittest.TestCase):
         with mock.patch("warera.client.HttpSession", return_value=fake_http):
             client = WareraClient(api_key="test")
 
-        expected = [
-            "user",
-            "company",
-            "country",
-            "government",
-            "region",
-            "battle",
-            "battle_ranking",
-            "battle_order",
-            "round",
-            "event",
-            "item_trading",
-            "work_offer",
-            "worker",
-            "mu",
-            "ranking",
-            "transaction",
-            "upgrade",
-            "article",
-            "search",
-            "game_config",
-            "inventory",
-            "action_log",
-        ]
-        for attr in expected:
+        import warera
+
+        for attr in warera._RESOURCE_NAMES:
             self.assertTrue(hasattr(client, attr), f"Missing resource: {attr}")
 
     def test_batch_returns_batch_session(self):
@@ -776,8 +754,9 @@ class TestSyncProxy(unittest.TestCase):
         result = proxy.get("42")
         self.assertEqual(result, {"id": "42"})
 
-    def test_sync_proxy_wraps_async_generator_to_list(self):
+    def test_sync_proxy_wraps_async_generator_to_generator(self):
         from warera.sync import _SyncResourceProxy  # noqa: PLC0415
+        from collections.abc import Iterator
 
         class FakeResource:
             async def paginate(self):
@@ -786,8 +765,8 @@ class TestSyncProxy(unittest.TestCase):
 
         proxy = _SyncResourceProxy(FakeResource())
         result = proxy.paginate()
-        self.assertIsInstance(result, list)
-        self.assertEqual(result, [0, 1, 2])
+        self.assertIsInstance(result, Iterator)
+        self.assertEqual(list(result), [0, 1, 2])
 
     def test_sync_proxy_passes_through_non_async_attr(self):
         from warera.sync import _SyncResourceProxy  # noqa: PLC0415

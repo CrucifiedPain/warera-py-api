@@ -1,5 +1,91 @@
 # Changelog
 
+## [0.2.2] — 2026-06-26
+
+This release patches several critical memory, concurrency, and parsing issues reported in the 3.1 Pro extended audit.
+
+### 🐛 Bug Fixes & Structural Improvements
+- **OOM Protection in `sync.py`:** Removed `nest_asyncio` and `loop.run_until_complete`. The synchronous wrapper now spawns a dedicated daemon thread running an isolated event loop. Coroutines are securely dispatched via `run_coroutine_threadsafe`, and async generators (`auto_items=True`) are properly streamed through a thread-safe `Queue` instead of blocking and materializing lists in memory.
+- **Cache Memory Limits (`_cache.py`, `_swr.py`):** Added a hard LRU size cap (1000 items) to prevent unbounded memory growth in long-running processes.
+- **Auto-batching InvalidStateError (`_http.py`):** The auto-batch fast path now safely checks `fut.done()` before attempting to `set_result`, preventing background tasks from crashing if the caller timed out.
+- **Rate-limit Race Conditions (`_http.py`):** The rate-limit tracker now handles out-of-order network responses accurately, preventing false "window refresh" inflations.
+- **Strict Dependency Declaration:** Explicitly use standard library `typing.ParamSpec` instead of `typing_extensions` for `_cache.py`.
+- **Unhashable Caching (`_cache.py`):** `async_memoize` now safely stringifies unhashable arguments (like lists/dicts) to ensure SWR hits.
+- **Robust JS Date Parsing (`_pagination.py`):** Changed the fragile hardcoded `[:24]` string slice to a robust `split(" GMT")[0]` when parsing `cursor` dates.
+- **Silent Batch Errors (`_batch.py`):** `fetch_many_by_ids` now correctly distinguishes between missing items (404 Not Found) and real system faults (500s, Rate Limits). Genuine faults are re-raised.
+- **URL Encoding:** Fixed implicit bytes-to-string encoding issues in `orjson.dumps()`.
+- **Restored `collect_all`:** Removed the deprecation warnings from `collect_all` across all resources. It is highly optimized via `parallel_collect_all` and is fully supported.
+- **Async Generator Leaks (`sync.py`):** Added `threading.Event()` and bounded backpressure to the internal thread-safe `Queue` in `_run_async_gen`. If a synchronous caller breaks early out of a paginated loop, the background asyncio thread is immediately cancelled, preventing a severe memory blowout where the thread would silently fetch and stash millions of ghost-records.
+- **Hanging Futures in Batching (`_http.py`):** Fixed an edge-case in `_auto_batch_flush` where an inexplicably omitted response index from a batch payload (API anomaly) would cause the corresponding waiting `Future` to never resolve, deadlocking the calling coroutine.
+- **Region `active_battle` Typing:** Replaced the loosely typed `dict[str, Any]` on the `Region.active_battle` field with the strict `Battle` Pydantic model for complete IDE autocomplete coverage.
+- **Client Cancellation Deadlocks (`_http.py`):** The auto-batch flusher now catches `BaseException` to correctly handle `asyncio.CancelledError`, ensuring pending futures are cleanly excepted and preventing deadlocks during `client.aclose()`.
+- **Orphaned Tasks & Daemon Thread Leaks (`sync.py`):** The synchronous generator consumer now explicitly cancels the background asyncio task when broken early. Furthermore, `atexit` is now used to register a graceful `shutdown()` hook that completely terminates the background loop and daemon thread upon process exit, stopping `ssl.SSLSocket` resource leaks.
+- **SWR Cache Race Conditions (`_swr.py`):** Duplicate background tasks on simultaneous stale cache misses are now prevented by synchronously assigning the pending task to the `_inflight` dictionary immediately after `loop.create_task()`.
+- **True LRU Eviction (`_swr.py`):** Upgraded `SWRCache` from standard dict to `collections.OrderedDict`, utilizing `move_to_end()` to ensure evictions eject the true least-recently-used items instead of the oldest inserted items.
+- **Exception Masking in Batch Flush (`_batch.py`):** Added a global exception catch-all in `_flush_chunk`. Unhandled system exceptions (like `httpx.ConnectTimeout`) are now wrapped in `WareraError` and propagated to all unresolved `BatchItem`s gracefully, resolving the cryptic "BatchItem has not been resolved yet" errors.
+
+## [0.2.1] — 2026-06-24
+
+### 🗺️ New Resource: Alliance
+
+- **`client.alliance`** is now a fully wired resource namespace (was missing in 0.2.0).
+- **`alliance.get(alliance_id)`** — fetch a single alliance by ID.
+- **`alliance.get_many(ids)`** — batch-fetch multiple alliances by ID list.
+- **`alliance.get_paginated(...)`** — cursor-paginated alliance listing with full `auto_items=True` and `cursor_end`/`max_pages` support.
+- **`alliance.collect_all()`** — convenience wrapper that falls through to `parallel_collect_all`.
+- New `Alliance`, `AllianceRankings`, `AllianceRankingEntry`, `AllianceMemberCountry` models, all fully typed.
+
+### 📦 Expanded Model Exports (models `__init__.py`)
+
+Many models introduced in 0.2.0 were not re-exported from the package root. `warera/models/__init__.py` now exports all of them explicitly:
+
+- `BattleLootSummary`, `BattleLootPoolItem`
+- `MercenaryContractAuction`, `MercenaryContractAuctionBid`
+- `Equipment`, `EquipmentSkills`
+- `Tournament`, `TournamentMatch`, `TournamentRound`, `TournamentTeam`, `TournamentRegistered`
+- `SearchResult` (companion to the already-exported `SearchResults`)
+- `CountryRankings`, `CountryTaxes`, `CountryUnrest`, `CountryStrategicResources`, `CountryStrategicResourceMap`, `CountryStrategicBonuses`
+- `Government`, `GovernmentDates`, `GovernmentMember`
+- `MilitaryUnit`, `MuRoles`, `MuRankings`, `MuLeveling`, `MuActiveUpgradeLevels`
+- `User` sub-models: `UserDates`, `UserLeveling`, `UserPreferences`, `UserRankings`, `UserSkills`, `UserStats`, `RankingDetail`, `SkillDetail`
+- `ReprMixin`, `WareraModel` (for downstream subclassing)
+- `AllianceMemberCountry`, `AllianceRankingEntry`, `AllianceRankings`
+
+
+
+### 🔬 New `async_memoize` Decorator (`_cache.py`)
+
+Added `warera._cache.async_memoize`, an unbounded async memoization decorator with thundering-herd protection (concurrent calls for the same key share the same `Future`). Used internally; not yet part of the public API surface.
+
+### 🌍 `WARERA_MAX_CONCURRENCY` Environment Override
+
+The parallel time-slicing engine in `_pagination.py` now reads `WARERA_MAX_CONCURRENCY` from the environment (default: `500`) so operators can tune peak concurrency without changing code:
+
+```bash
+export WARERA_MAX_CONCURRENCY=50   # gentler on rate limits
+```
+
+### 🐍 Jupyter / `nest_asyncio` Support in Sync Client
+
+The sync shim (`warera.sync`) now detects when it is called from inside a running event loop (e.g. Jupyter or IPython) and applies `nest_asyncio` if installed, rather than raising a `RuntimeError`. `nest_asyncio` is optional — the shim degrades gracefully to `asyncio.run()` when the library is absent.
+
+### 🧪 Test Suite Expansion
+
+- `test_swr.py` — new dedicated tests for `SWRCache`: basic fetch, stale-while-revalidate background refresh, and concurrent thundering-herd deduplication.
+- `test_user_parsing.py` — regression tests for `User.equipped_skin_keys` (dict, not list) and `User.finished_tours` (dict, not list), locking in the 0.2.0 schema fix.
+- `test_enhancements.py` — model `__str__` / `__repr__` tests, `ReprMixin` coverage, `CursorPage` iteration and `len()`, `BaseResource.__str__`, `WareraClient.__str__`, and `BatchItem` lifecycle display.
+- `test_custom_resources.py` — unit tests for newer resource namespaces: `Alliance`, `Party`, `Election`, `Donation`, `GameStat`, `MuMember`, `Work`, `WorkOffer`, `ItemTrading`, `Company`.
+
+### Bug Fixes & Architecture Parity
+- Add missing 32 sub-models to root namespace and `__all__`.
+- Implement `invalidate_cache()` across cache-holding resources.
+- Correctly bump internal `__version__` variable to `0.2.1`.
+- Fix async generator leak in `_SyncResourceProxy` causing failures in synchronous mode with `auto_items=True`.
+- Update deprecation message across pagination endpoints.
+- Update `EventType.PEACE_AGREEMENT` to camelCase `peaceAgreement`.
+- Add test gates to PyPI publishing workflow.
+- Update `pyproject.toml` repository links.
+
 ## [0.2.0] — 2026-05-27
 
 ### ✅ Live-Verified Response Schemas
@@ -19,7 +105,7 @@ Every public endpoint was validated field-by-field against live production paylo
 
 ### 🔐 Graceful Auth Handling
 
-- **Context-aware 401 errors**: `WareraUnauthorizedError` now tells you *why* — "no API key is configured (set `WARERA_API_KEY` / `warera.set_api_key()`)" vs "the configured API key was rejected". Inspect `err.api_key_configured` programmatically.
+- **Context-aware 401 errors**: `WareraUnauthorizedError` now tells you *why* — "no API key is configured (set `WARERA_API_KEY` / `warera.set_api_key()`)\" vs "the configured API key was rejected". Inspect `err.api_key_configured` programmatically.
 - **`validate_api_key()`**: new on both clients and module-level (`await warera.validate_api_key()`, sync `warera.sync.validate_api_key()`). Returns `True`/`False` without raising; network/server errors still propagate so an outage isn't mistaken for a bad key.
 - **`set_api_key(key, validate=True)`** (sync module) validates the key against the server immediately and raises if rejected.
 - New `WareraClient.has_api_key` property.

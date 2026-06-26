@@ -1,9 +1,8 @@
 import asyncio
+from collections import OrderedDict
 from collections.abc import Awaitable, Callable
 from functools import wraps
-from typing import Any, TypeVar
-
-from typing_extensions import ParamSpec
+from typing import Any, ParamSpec, TypeVar
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -16,23 +15,27 @@ def async_memoize(func: Callable[P, Awaitable[R]]) -> Callable[P, Awaitable[R]]:
     Automatically handles concurrent 'thundering herd' requests by returning
     the same Future to all waiters.
     """
-    cache: dict[Any, asyncio.Future[R]] = {}
+    cache: OrderedDict[Any, asyncio.Future[R]] = OrderedDict()
 
     @wraps(func)
     async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         # Create a hashable key from args and kwargs.
+        key: Any
         try:
             key = (args, frozenset(kwargs.items()))
         except TypeError:
-            # If arguments are not hashable (e.g. lists), we bypass the cache.
-            return await func(*args, **kwargs)
+            # If arguments are not hashable (e.g. lists), we convert them to strings.
+            key = (str(args), str(kwargs))
 
         if key in cache:
+            cache.move_to_end(key)
             return await cache[key]
 
         loop = asyncio.get_running_loop()
         fut = loop.create_future()
         cache[key] = fut
+        if len(cache) > 1000:
+            cache.popitem(last=False)
 
         try:
             result = await func(*args, **kwargs)

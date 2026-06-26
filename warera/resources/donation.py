@@ -122,13 +122,12 @@ class DonationResource(BaseResource):
         )
         return DonationTotals.model_validate(raw)
 
-
     async def collect_all(self, **kwargs: typing.Any) -> list[Donation]:
         """Fetch all items across all pages concurrently using parallel time-slicing."""
         import warnings
 
         warnings.warn(
-            "`collect_all()` is deprecated. Use `get_all()` directly.",
+            "`collect_all()` is deprecated. Use `get_paginated(auto_items=True)` directly.",
             DeprecationWarning,
             stacklevel=2,
         )
