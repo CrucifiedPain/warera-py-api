@@ -34,8 +34,9 @@ jobs:
           
       - name: Generate and Push Wiki
         run: |
-          # Clone the wiki repository securely using the GITHUB_TOKEN
-          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.wiki.git scripts/api-client-py.wiki || echo "Wiki repository may not exist yet or clone failed"
+          # GITHUB_TOKEN cannot write to the wiki repo, so a PAT with `repo` scope
+          # stored as the WIKI_DEPLOY_TOKEN secret is required here instead.
+          git clone https://x-access-token:${{ secrets.WIKI_DEPLOY_TOKEN }}@github.com/${{ github.repository }}.wiki.git scripts/api-client-py.wiki || echo "Wiki repository may not exist yet or clone failed"
           
           python scripts/generate_wiki.py
           
