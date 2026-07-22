@@ -73,4 +73,4 @@ To learn more about these powerful features, visit the [Advanced Usage](Advanced
 
 ## API Reference
 
-Check out the [API Reference](API-Reference) to explore all 32 available resource namespaces and their perfectly typed models.
+Check out the [API Reference](API-Reference) to explore all 33 available resource namespaces and their perfectly typed models.

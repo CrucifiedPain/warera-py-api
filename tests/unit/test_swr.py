@@ -115,3 +115,31 @@ async def test_swr_revalidate_creates_single_task():
     await asyncio.sleep(0.1)
     assert inflight_task.done()
     assert len(cache._inflight) == 0
+
+
+@pytest.mark.asyncio
+async def test_swr_blocking_backend_store_is_tracked_and_persists(tmp_path):
+    """
+    With a blocking backend, the fire-and-forget store task must be strongly
+    referenced (so the loop can't GC it mid-write) and the value must persist.
+    """
+    from warera.cache_backends import SQLiteCacheBackend
+
+    db = str(tmp_path / "swr.sqlite")
+    cache = SWRCache(backend=SQLiteCacheBackend(db))
+
+    async def fetcher():
+        return {"v": 1}
+
+    result = await cache.get("k", 10.0, fetcher)
+    assert result == {"v": 1}
+
+    # Allow the background store task to complete.
+    await asyncio.sleep(0.2)
+
+    # The write must have persisted to disk (would be lost if the task was GC'd).
+    persisted = SQLiteCacheBackend(db).get("k")
+    assert persisted is not None
+    assert persisted[0] == {"v": 1}
+    # Completed store tasks are discarded from the tracking set.
+    assert len(cache._store_tasks) == 0

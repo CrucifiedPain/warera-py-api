@@ -29,6 +29,9 @@ class SWRCache:
         self._telemetry = telemetry
         # Tracks keys currently being revalidated to avoid duplicate concurrent requests
         self._inflight: dict[str, asyncio.Task[Any]] = {}
+        # Strong refs to fire-and-forget store tasks (blocking backends) so the
+        # event loop's weak reference can't let them be GC'd mid-write.
+        self._store_tasks: set[asyncio.Task[Any]] = set()
 
     async def get(
         self, key: str, ttl_seconds: float, fetcher: Callable[[], Coroutine[Any, Any, T]]
@@ -97,7 +100,10 @@ class SWRCache:
             if not t.cancelled() and not t.exception():
                 # Store off the event loop when the backend does blocking I/O (B1).
                 if getattr(self._cache, "is_blocking", False):
-                    asyncio.create_task(self._store(key, t.result()))
+                    store_task = asyncio.create_task(self._store(key, t.result()))
+                    # Keep a strong ref so the write can't be GC'd mid-flight.
+                    self._store_tasks.add(store_task)
+                    store_task.add_done_callback(self._store_tasks.discard)
                 else:
                     self._store_sync(key, t.result())
 
@@ -127,5 +133,8 @@ class SWRCache:
         """Clear the cache entirely and cancel any in-flight revalidations."""
         for task in self._inflight.values():
             task.cancel()
+        for task in self._store_tasks:
+            task.cancel()
         self._cache.clear()
         self._inflight.clear()
+        self._store_tasks.clear()
