@@ -16,8 +16,8 @@ class RankingResource(BaseResource):
         Get a ranking leaderboard.
 
         Args:
-            ranking_type: One of 25 ranking types (country, user, or MU).
-                          Use the RankingType enum for tab-completion.
+            ranking_type: One of the ranking types (country, user, MU, or
+                          alliance). Use the RankingType enum for tab-completion.
 
         Example:
             entries = await client.ranking.get(RankingType.USER_WEALTH)

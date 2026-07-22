@@ -18,7 +18,7 @@ This client library maps those exactly 1-to-1:
 # Body: {"countryId": "7"}
 
 # Python SDK Equivalent
-country = await client.country.get_by_id("7")
+country = await client.country.get("7")
 ```
 
 All responses from the API are automatically parsed into strictly-typed [Pydantic](https://docs.pydantic.dev/) models. This means your editor will automatically autocomplete fields like `country.name` and warn you if you type something wrong!

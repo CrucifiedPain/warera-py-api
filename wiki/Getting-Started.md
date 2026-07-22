@@ -34,7 +34,7 @@ import warera
 
 async def main():
     # Fetch country ID '7'
-    country = await warera.country.get_by_id("7")
+    country = await warera.country.get("7")
     
     print(f"Welcome to {country.name}!")
     

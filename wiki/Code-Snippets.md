@@ -19,7 +19,7 @@ user = client.user.get_by_id("123")
 print(user.name)
 
 # Even get_many works synchronously!
-countries = client.country.get_many(["7", "8", "9"])
+users = client.user.get_many(["123", "456", "789"])
 ```
 
 ## Using Enums for Filtering
