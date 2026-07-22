@@ -2,10 +2,24 @@
 
 ## [0.2.3] — 2026-07-22
 
-### 🔧 Stability & Correctness Audit
-A full audit of the 0.2.3 feature branch (cancellation, SWR, batching, priority,
-telemetry) fixed the following before release. Endpoint corrections were verified
-against the live API (source-of-truth: the community API explorer).
+### 🛑 Request Cancellation (AbortController)
+Added the highly requested ability to cancel in-flight API requests, inspired by Issue #30 in the TS wrapper.
+
+- **`CancellationScope` Context Manager:** Seamlessly wrap API calls in an `async with CancellationScope() as scope:` block. Calling `scope.cancel()` will instantly abort any pending tasks within that scope, throwing an `asyncio.CancelledError`.
+- **Pre-flight Batch Pruning:** Cancelled requests are caught *before* they are bundled into network calls by the auto-batching engine. If a user cancels a request while it's still waiting in the 5ms batch queue, it is silently removed, saving bandwidth and rate-limit points.
+- **Sync Shim Support:** Cancellation safely traverses the sync/async bridge! The `warera.sync.CancellationScope` can be invoked from any thread, and accurately propagates the signal down to the isolated asyncio daemon thread.
+
+### 💾 Persistent SWR Caching & Data Backends
+- **SQLite Support:** Replaced the hardcoded in-memory SWR cache with a pluggable `CacheBackend` interface (`warera.cache_backends`). You can now initialize the client with `SQLiteCacheBackend("cache.db")` to persist API responses across application restarts!
+
+### 📡 Network Telemetry & HTTP Context
+- **Telemetry Hooks:** Added a `TelemetryHooks` API. You can pass custom hooks during client initialization to receive granular event metrics like `on_cache_hit(key, is_stale)` and `on_retry(attempt, delay_seconds)`.
+- **`.env` Auto-loading:** The `HttpSession` explicitly respects `os.environ.get("WARERA_API_KEY")` during instantiation, automatically injecting it into the `x-api-key` header for security.
+- **Header Customization:** Fixed the `user-agent` header to correctly broadcast `warera-client` across all network layers, and securely hashes the base36 `rt` retry header for rate-limit transparency.
+- **Request Priority Queue:** Internal batching has been split into priority lanes to ensure `HIGH` priority commands jump the queue.
+
+### 🐛 Bug Fixes & Correctness
+Endpoint parameters were verified against the live API (source-of-truth: the community API explorer).
 
 #### Critical fixes (runtime crashers)
 - **`War` model (`models/war.py`):** removed the `id: str` redefinition that shadowed
@@ -22,12 +36,12 @@ against the live API (source-of-truth: the community API explorer).
   the real param is `searchText`. Now parse the returned ID list into `SearchResult`s.
 - **`war.getById` / `tournament.getById`:** were sending `id=`; corrected to `warId` /
   `tournamentId`.
-- **Removed broken duplicate methods** that shadowed correct canonical ones (verified
-  against the live API): `ranking.get_ranking` (wrong params), `user.get_users_by_country`
-  (mishandled the paginated response), `government.get_by_country_id` (redundant, used
-  deprecated `parse_obj`), `company.get_recommended_region_ids_by_item_code` (wrong return
-  type), `battle.get_ranking` (missing required `dataType`/`type`/`side`). Use the canonical
-  `ranking.get`, `user.get_by_country`, `government.get`, `company.get_recommended_regions`,
+- **Dropped duplicate convenience methods** that shadowed correct canonical ones and were
+  themselves broken (verified against the live API): `ranking.get_ranking` (wrong params),
+  `user.get_users_by_country` (mishandled the paginated response), `government.get_by_country_id`
+  (redundant, used deprecated `parse_obj`), `company.get_recommended_region_ids_by_item_code`
+  (wrong return type), `battle.get_ranking` (missing required `dataType`/`type`/`side`). Use the
+  canonical `ranking.get`, `user.get_by_country`, `government.get`, `company.get_recommended_regions`,
   and `client.battle_ranking.get` instead.
 - Replaced all remaining Pydantic v1 `parse_obj` calls with `model_validate`.
 
@@ -59,23 +73,6 @@ against the live API (source-of-truth: the community API explorer).
 - Removed stray `pass` statements in `models/company.py`.
 - `sync._run` guards the concurrent future's state transition against a racing cancel.
 - Corrected the `RequestPriority` docstring to match actual behaviour.
-- Added a telemetry `on_retry` hook.
-
-### 🛑 Request Cancellation (AbortController)
-Added the highly requested ability to cancel in-flight API requests, inspired by Issue #30 in the TS wrapper.
-
-- **`CancellationScope` Context Manager:** Seamlessly wrap API calls in an `async with CancellationScope() as scope:` block. Calling `scope.cancel()` will instantly abort any pending tasks within that scope, throwing an `asyncio.CancelledError`.
-- **Pre-flight Batch Pruning:** Cancelled requests are caught *before* they are bundled into network calls by the auto-batching engine. If a user cancels a request while it's still waiting in the 5ms batch queue, it is silently removed, saving bandwidth and rate-limit points.
-- **Sync Shim Support:** Cancellation safely traverses the sync/async bridge! The `warera.sync.CancellationScope` can be invoked from any thread, and accurately propagates the signal down to the isolated asyncio daemon thread.
-
-### 💾 Persistent SWR Caching & Data Backends
-- **SQLite Support:** Replaced the hardcoded in-memory SWR cache with a pluggable `CacheBackend` interface (`warera.cache_backends`). You can now initialize the client with `SQLiteCacheBackend("cache.db")` to persist API responses across application restarts!
-
-### 📡 Network Telemetry & HTTP Context
-- **Telemetry Hooks:** Added a `TelemetryHooks` API. You can pass custom hooks during client initialization to receive granular event metrics like `on_cache_hit(key, is_stale)`.
-- **`.env` Auto-loading:** The `HttpSession` explicitly respects `os.environ.get("WARERA_API_KEY")` during instantiation, automatically injecting it into the `x-api-key` header for security.
-- **Header Customization:** Fixed the `user-agent` header to correctly broadcast `warera-client` across all network layers, and securely hashes the base36 `rt` retry header for rate-limit transparency.
-- **Request Priority Queue:** Internal batching has been split into priority lanes to ensure `HIGH` priority commands jump the queue.
 
 ## [0.2.2] — 2026-06-26
 

@@ -48,6 +48,9 @@ dev = [
     "mypy>=1.10",
     "hatch",
 ]
+docs = [
+    "jinja2>=3.1",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["warera"]

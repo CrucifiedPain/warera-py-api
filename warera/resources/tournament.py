@@ -8,6 +8,7 @@ class TournamentResource(BaseResource):
     """
     Endpoints:
       • tournament.getLastTournament
+      • tournament.getById
       • tournamentTeam.getById
       • tournamentTeam.getByTournamentId
     """

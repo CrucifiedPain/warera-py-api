@@ -291,5 +291,3 @@ class CompanyResource(BaseResource):
             current_queries = next_queries
 
         return all_companies
-
-

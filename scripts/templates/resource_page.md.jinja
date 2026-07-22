@@ -1,0 +1,52 @@
+{# Resource page: title, class docstring, one block per method, then a single
+   de-duplicated Data Models section. Blank lines around headings and the `---`
+   rule are baked in so no renderer folds sections together. #}
+# {{ res.class_name }} (`client.{{ res.name }}`)
+{% if res.doc %}
+
+{{ res.doc }}
+{% endif %}
+{% for method in res.methods %}
+
+## `.{{ method.name }}()`
+{% if method.doc %}
+
+{{ method.doc }}
+{% endif %}
+
+### Signature
+
+```python
+await client.{{ res.name }}.{{ method.name }}{{ method.signature }}
+```
+{% if method.params %}
+
+### Parameters
+
+| Name | Type | Default |
+|---|---|---|
+{% for p in method.params %}
+| `{{ p.name }}` | {{ p.type }} | {{ p.default }} |
+{% endfor %}
+{% endif %}
+
+---
+{% endfor %}
+{% if res.models %}
+
+## Data Models
+{% for model in res.models %}
+
+### `{{ model.name }}`
+{% if model.doc %}
+
+{{ model.doc }}
+{% endif %}
+
+| Field | Type | Required |
+|---|---|---|
+{% for f in model.fields %}
+| `{{ f.name }}` | {{ f.type }} | {{ f.required }} |
+{% endfor %}
+{% endfor %}
+{% endif %}

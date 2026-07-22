@@ -173,4 +173,3 @@ class UserResource(BaseResource):
                 all_users.append(None)
 
         return all_users
-

@@ -20,7 +20,7 @@ async def main():
 
 ## Features
 
-- **Full API coverage** — all endpoints across 32 resource namespaces.
+- **Full API coverage** — all endpoints across 33 resource namespaces.
 - **Fully Typed** — Pydantic v2 models for *every* request and response.
 - **Async-first** — built on `httpx.AsyncClient`; sync shim included.
 - **Cursor pagination** — transparent `auto_items=True` generator and `collect_all()` time-slicing engine.
@@ -62,7 +62,7 @@ async def main():
     print(f"Iron: {prices.get('iron').price}")
 
     # Paginated
-    page = await warera.user.get_paginated(country_id=country.id, limit=50)
+    page = await warera.user.get_by_country(country_id=country.id, limit=50)
     for u in page.items:
         print(u.username)
 
@@ -119,7 +119,7 @@ async with WareraClient(api_key="YOUR_KEY") as client:
 
 ## All Resource Methods
 
-For a complete, detailed list of all 32 resource namespaces, their signatures, and the returned Pydantic models, please refer to the **[API Reference Wiki](https://github.com/wareraprojects/api-client-py/wiki/API-Reference)**.
+For a complete, detailed list of all 33 resource namespaces, their signatures, and the returned Pydantic models, please refer to the **[API Reference Wiki](https://github.com/wareraprojects/api-client-py/wiki/API-Reference)**.
 
 ---
 
@@ -342,8 +342,8 @@ warera/
 ├── _http.py             # httpx session, GET/POST, rate-limit headers, retry
 ├── _pagination.py       # paginate(), collect_all()
 ├── _batch.py            # BatchSession, BatchItem, fetch_many_by_ids
-├── models/              # Pydantic response models (31 files)
-└── resources/           # Resource classes (32 files)
+├── models/              # Pydantic response models (33 files)
+└── resources/           # Resource classes (33 files)
 ```
 
 ---

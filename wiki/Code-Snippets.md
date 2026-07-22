@@ -28,16 +28,23 @@ Many endpoints require specific filter strings. To avoid typos, the library prov
 
 ```python
 import warera
-from warera import BattleFilter, BattleRankingDataType
+from warera import (
+    BattleFilter,
+    BattleRankingDataType,
+    BattleRankingEntityType,
+    BattleRankingSide,
+)
 
 async def fetch_battles():
     # Only fetch battles happening in your country
-    battles = await warera.battle.get_active(filter_by=BattleFilter.YOUR_COUNTRY)
-    
+    battles = await warera.battle.get_active(filter=BattleFilter.YOUR_COUNTRY)
+
     # Fetch battle rankings, specifically for Damage dealt
     rankings = await warera.battle_ranking.get(
-        battle_id="100", 
-        data_type=BattleRankingDataType.DAMAGE
+        data_type=BattleRankingDataType.DAMAGE,
+        type=BattleRankingEntityType.USER,
+        side=BattleRankingSide.ATTACKER,
+        battle_id="100",
     )
 ```
 

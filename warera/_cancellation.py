@@ -59,7 +59,7 @@ class CancellationScope:
         with self._lock:
             self.is_cancelled = True
             tasks = list(self._tasks)
-            
+
         for task in tasks:
             if not task.done():
                 try:

@@ -72,4 +72,3 @@ class SearchResource(BaseResource):
             for eid in raw
             if isinstance(eid, str)
         ]
-

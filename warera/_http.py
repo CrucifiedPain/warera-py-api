@@ -514,7 +514,7 @@ class HttpSession:
                     self._auto_batch_task = loop.create_task(self._auto_batch_flush(), context=ctx)  # type: ignore[call-arg]
                 else:
                     self._auto_batch_task = ctx.run(loop.create_task, self._auto_batch_flush())
-            
+
             if priority == RequestPriority.HIGH:
                 self._auto_batch_flush_event.set()
 
@@ -578,7 +578,7 @@ class HttpSession:
 
         if len(active_queue) == 1:
             _, proc, params, fut = active_queue[0]
-            
+
             task = asyncio.current_task()
             def on_cancel(f: asyncio.Future[Any]) -> None:
                 if f.cancelled() and task and not task.done():

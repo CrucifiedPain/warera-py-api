@@ -1,0 +1,7 @@
+{# API reference index: one bullet per resource namespace. #}
+# API Reference
+
+Below is a list of all available resource namespaces on the `WareraClient`:
+{% for res in resources %}
+- [`client.{{ res.name }}`]({{ res.page_name }}) - {{ res.class_name }}
+{% endfor %}
