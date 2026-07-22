@@ -89,6 +89,29 @@ async def test_swr_cache_eviction():
     for i in range(1005):
         await cache.get(f"key_{i}", 10.0, fetcher)
         
-    assert len(cache._cache) == 1000
-    assert "key_0" not in cache._cache
-    assert "key_1004" in cache._cache
+    assert cache._cache.get_size() == 1000
+    assert cache._cache.get("key_0") is None
+    assert cache._cache.get("key_1004") is not None
+
+
+@pytest.mark.asyncio
+async def test_swr_revalidate_creates_single_task():
+    """A stale revalidation must create exactly one inflight task, not two."""
+    cache = SWRCache()
+
+    async def fetcher():
+        await asyncio.sleep(0.05)
+        return "v"
+
+    # Prime the cache with a stale entry.
+    await cache.get("k", 0.01, fetcher)
+    await asyncio.sleep(0.02)
+
+    # Trigger background revalidation; exactly one inflight task should exist.
+    await cache.get("k", 0.01, fetcher)
+    assert len(cache._inflight) == 1
+    inflight_task = next(iter(cache._inflight.values()))
+
+    await asyncio.sleep(0.1)
+    assert inflight_task.done()
+    assert len(cache._inflight) == 0

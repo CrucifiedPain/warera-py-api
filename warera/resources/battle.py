@@ -150,3 +150,5 @@ class BattleResource(BaseResource):
             concurrency=kwargs.pop("concurrency", 500),
             **kwargs,
         )
+
+

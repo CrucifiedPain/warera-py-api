@@ -46,8 +46,28 @@ async def main():
 ## Features at a Glance
 
 1. **Auto-Batching**: Any `.get_many()` call is automatically chunked into optimized batch requests of 50 procedures each, drastically reducing round-trip latency.
-2. **Smart Caching**: Heavy endpoints like `game_config` are cached in memory and served instantly using a Stale-While-Revalidate pattern.
+2. **SWR Disk Caching**: Heavy endpoints like `game_config` are cached to disk and served instantly using a Stale-While-Revalidate pattern.
 3. **Time-Slice Pagination**: Grab thousands of records instantly using the `collect_all()` engine.
+
+```mermaid
+sequenceDiagram
+    participant Code as User Code
+    participant Batcher as Auto-Batcher
+    participant Cache as SWR Cache
+    participant API as WarEra API
+
+    Code->>Batcher: get_many(["user1", "user2"...])
+    Note over Batcher: Collects requests for 5ms
+    Batcher->>API: POST 50-chunk Batch
+    API-->>Batcher: Returns 50 Results
+    Batcher-->>Code: Unwraps & Returns List
+
+    Code->>Cache: get("game_config")
+    Cache-->>Code: Instantly returns stale memory
+    Note over Cache: Background revalidation
+    Cache->>API: GET "game_config"
+    API-->>Cache: Fresh Config (Updates cache)
+```
 
 To learn more about these powerful features, visit the [Advanced Usage](Advanced-Usage) page!
 

@@ -28,10 +28,13 @@ Usage:
 from __future__ import annotations
 
 import asyncio
+import logging
 from dataclasses import dataclass, field
 from typing import Any, Generic, TypeVar, cast
 
 from .exceptions import WareraBatchError, WareraError, WareraNotFoundError
+
+logger = logging.getLogger("warera.batch")
 
 T = TypeVar("T")
 
@@ -95,17 +98,17 @@ class BatchSession:
 
         # After the block: item1.result, item2.result are populated.
 
-    If batch_size < number of queued calls, they are split into multiple
+    If max_batch_size < number of queued calls, they are split into multiple
     concurrent POST requests automatically.
     """
 
     def __init__(
-        self, http: Any, batch_size: int = DEFAULT_BATCH_SIZE, concurrency: int | None = None
+        self, http: Any, max_batch_size: int = DEFAULT_BATCH_SIZE, concurrency: int | None = None
     ) -> None:
         # `http` is an HttpSession instance — typed as Any to avoid circular import
         self._http = http
         # Clamp to the API hard limit — requests with >50 procedures are rejected.
-        self._batch_size = min(batch_size, MAX_BATCH_SIZE)
+        self._max_batch_size = min(max_batch_size, MAX_BATCH_SIZE)
         self._concurrency = concurrency
         self._queue: list[BatchItem[Any]] = []
 
@@ -126,7 +129,7 @@ class BatchSession:
 
     async def flush(self) -> None:
         """
-        Execute all queued calls. Splits into chunks of `batch_size` and
+        Execute all queued calls. Splits into chunks of `max_batch_size` and
         fires chunks concurrently. Called automatically on `__aexit__`.
         """
         if not self._queue:
@@ -134,8 +137,8 @@ class BatchSession:
 
         # Split queue into chunks
         chunks: list[list[BatchItem[Any]]] = [
-            self._queue[i : i + self._batch_size]
-            for i in range(0, len(self._queue), self._batch_size)
+            self._queue[i : i + self._max_batch_size]
+            for i in range(0, len(self._queue), self._max_batch_size)
         ]
 
         # Fire all chunks concurrently with limits if specified
@@ -165,6 +168,9 @@ class BatchSession:
                     item._fail(exc.errors[i])
                 elif i in exc.results:
                     item._resolve(exc.results[i])
+                elif not item._resolved:
+                    # Index in neither map — don't leave the item dangling (BT2).
+                    item._fail(WareraError(f"Batch item {i} returned no result or error"))
         except Exception as exc:
             # Entire chunk failed (e.g. network error)
             for item in chunk:
@@ -194,7 +200,7 @@ async def fetch_many_by_ids(
     procedure: str,
     id_param: str,
     ids: list[str],
-    batch_size: int = DEFAULT_BATCH_SIZE,
+    max_batch_size: int = DEFAULT_BATCH_SIZE,
     concurrency: int | None = None,
 ) -> list[Any]:
     """
@@ -206,7 +212,7 @@ async def fetch_many_by_ids(
         procedure:  e.g. "company.getById"
         id_param:   The input key name, e.g. "companyId"
         ids:        List of ID strings to fetch
-        batch_size: Max IDs per batch POST (default 50, hard-capped at 50)
+        max_batch_size: Max IDs per batch POST (default 50, hard-capped at 50)
 
     Returns:
         List of raw API responses in the same order as `ids`. Entries for
@@ -217,7 +223,7 @@ async def fetch_many_by_ids(
         return []
 
     # Enforce the server hard limit regardless of what the caller passed.
-    effective_size = min(batch_size, MAX_BATCH_SIZE)
+    effective_size = min(max_batch_size, MAX_BATCH_SIZE)
     chunks = [ids[i : i + effective_size] for i in range(0, len(ids), effective_size)]
 
     sem = asyncio.Semaphore(concurrency) if concurrency is not None else None
@@ -236,7 +242,13 @@ async def fetch_many_by_ids(
                         if isinstance(err, WareraNotFoundError):
                             res.append(None)
                         else:
-                            raise err from exc
+                            # Don't raise — that would drop this whole chunk's
+                            # results. Record the failed item as None and keep
+                            # the successes (BT1).
+                            logger.warning(
+                                "fetch_many_by_ids: item %d in chunk failed: %r", i, err
+                            )
+                            res.append(None)
                     else:
                         res.append(exc.results.get(i))
                 return res
@@ -246,5 +258,16 @@ async def fetch_many_by_ids(
                 return await _do()
         return await _do()
 
-    chunk_results = await asyncio.gather(*[fetch_chunk(c) for c in chunks])
-    return [item for sublist in chunk_results for item in sublist]
+    # return_exceptions=True so one chunk's transport failure doesn't discard
+    # every other chunk's successful results (BT1).
+    chunk_results = await asyncio.gather(
+        *[fetch_chunk(c) for c in chunks], return_exceptions=True
+    )
+    out: list[Any] = []
+    for chunk, result in zip(chunks, chunk_results, strict=True):
+        if isinstance(result, BaseException):
+            logger.warning("fetch_many_by_ids: chunk failed entirely: %r", result)
+            out.extend([None] * len(chunk))
+        else:
+            out.extend(result)
+    return out

@@ -2,15 +2,18 @@ import inspect
 import os
 import re
 import shutil
+import sys
 import typing
 from typing import Any, get_args, get_origin
 
 from pydantic import BaseModel
 
+# Ensure we import the local warera package, not the system-wide installed one
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import warera
 
 WIKI_DIR = os.path.join(os.path.dirname(__file__), "api-client-py.wiki")
-REPO_URL = "https://github.com/WarEra-India/api-client-py.wiki.git"
+REPO_URL = "https://github.com/wareraprojects/api-client-py.wiki.git"
 
 def get_pydantic_models_from_type(t: Any, seen: set[Any] | None = None) -> set[type[BaseModel]]:
     if seen is None:
@@ -194,17 +197,30 @@ def generate_resource_page(name: str, res: Any) -> str:
 
 def run() -> None:
     os.makedirs(WIKI_DIR, exist_ok=True)
-    
+
     client = warera.WareraClient()
+    try:
+        _generate(client)
+    finally:
+        # Close the underlying httpx client so we don't leak an unclosed
+        # connection / emit a ResourceWarning at interpreter exit.
+        import asyncio
+        import contextlib
+
+        with contextlib.suppress(Exception):
+            asyncio.run(client.aclose())
+
+
+def _generate(client: "warera.WareraClient") -> None:
     resources = []
     for prop in dir(client):
         if prop.startswith("_") or prop in ["batch", "rate_limit_remaining", "rate_limit_reset", "rate_limit_total"]:
             continue
-        
+
         attr = getattr(client, prop)
         if hasattr(attr, "__module__") and "warera.resources" in attr.__module__:
             resources.append((prop, attr))
-            
+
     # Generate Resource Pages
     sidebar_lines = ["# Warera API Client", ""]
     sidebar_lines.append("## Getting Started")

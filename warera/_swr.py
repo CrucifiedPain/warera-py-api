@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import time
-from collections import OrderedDict
 from collections.abc import Callable, Coroutine
 from typing import Any, TypeVar, cast
+
+from .cache_backends import CacheBackend, MemoryCacheBackend
+from .telemetry import TelemetryHooks
 
 logger = logging.getLogger("warera.swr")
 
@@ -17,9 +20,13 @@ class SWRCache:
     A simple Stale-While-Revalidate (SWR) cache engine.
     """
 
-    def __init__(self) -> None:
-        # Maps key -> (data, fetch_timestamp)
-        self._cache: OrderedDict[str, tuple[Any, float]] = OrderedDict()
+    def __init__(
+        self,
+        backend: CacheBackend | None = None,
+        telemetry: TelemetryHooks | None = None,
+    ) -> None:
+        self._cache = backend or MemoryCacheBackend()
+        self._telemetry = telemetry
         # Tracks keys currently being revalidated to avoid duplicate concurrent requests
         self._inflight: dict[str, asyncio.Task[Any]] = {}
 
@@ -33,12 +40,17 @@ class SWRCache:
         - If the key is in cache and fresh, return instantly.
         - If the key is in cache but stale, return instantly and fire a background task to update it.
         """
+        now = time.time()
+        cached = await self._cache_get(key)
 
+        if cached is not None:
+            data, fetch_time = cached
+            is_stale = now - fetch_time > ttl_seconds
 
-        if key in self._cache:
-            data, timestamp = self._cache[key]
-            self._cache.move_to_end(key)
-            if time.time() - timestamp > ttl_seconds:
+            if self._telemetry:
+                self._telemetry.on_cache_hit(key, is_stale)
+
+            if is_stale:
                 logger.debug(
                     f"SWR Cache hit (stale) for '{key}'. Triggering background revalidation."
                 )
@@ -60,9 +72,7 @@ class SWRCache:
         if key in self._inflight:
             return
 
-        loop = asyncio.get_running_loop()
-        task = loop.create_task(self._do_fetch(key, fetcher))
-        self._inflight[key] = task
+        task = self._start_fetch(key, fetcher)
 
         def _log_exc(t: asyncio.Task[T]) -> None:
             if not t.cancelled() and t.exception():
@@ -70,22 +80,52 @@ class SWRCache:
 
         task.add_done_callback(_log_exc)
 
-    async def _do_fetch(self, key: str, fetcher: Callable[[], Coroutine[Any, Any, T]]) -> T:
-        """Execute the fetcher, store the result, and manage the inflight lock."""
+    def _start_fetch(
+        self, key: str, fetcher: Callable[[], Coroutine[Any, Any, T]]
+    ) -> asyncio.Task[T]:
+        """
+        Create exactly ONE task that runs the fetcher, register it as inflight,
+        and wire up cache-store + inflight-cleanup on completion. Returns the
+        task so callers can await it (blocking miss) or fire-and-forget it
+        (background revalidation).
+        """
         task: asyncio.Task[T] = asyncio.create_task(fetcher())
         self._inflight[key] = task
-        try:
-            data = await task
-            self._cache[key] = (data, time.time())
-            if len(self._cache) > 1000:
-                self._cache.popitem(last=False)
-            return data
-        finally:
+
+        def _on_done(t: asyncio.Task[T]) -> None:
             self._inflight.pop(key, None)
+            if not t.cancelled() and not t.exception():
+                # Store off the event loop when the backend does blocking I/O (B1).
+                if getattr(self._cache, "is_blocking", False):
+                    asyncio.create_task(self._store(key, t.result()))
+                else:
+                    self._store_sync(key, t.result())
+
+        task.add_done_callback(_on_done)
+        return task
+
+    async def _cache_get(self, key: str) -> tuple[Any, float] | None:
+        """Read from the backend, offloading to a thread if it blocks (B1)."""
+        if getattr(self._cache, "is_blocking", False):
+            return await asyncio.to_thread(self._cache.get, key)
+        return self._cache.get(key)
+
+    def _store_sync(self, key: str, value: Any) -> None:
+        self._cache.set(key, value, time.time())
+        if self._cache.get_size() > 1000:
+            self._cache.pop_oldest()
+
+    async def _store(self, key: str, value: Any) -> None:
+        with contextlib.suppress(Exception):
+            await asyncio.to_thread(self._store_sync, key, value)
+
+    async def _do_fetch(self, key: str, fetcher: Callable[[], Coroutine[Any, Any, T]]) -> T:
+        """Execute the fetcher (single task), store the result, and return it."""
+        return await self._start_fetch(key, fetcher)
 
     def clear(self) -> None:
-        """Clear the cache entirely."""
-        for task in list(self._inflight.values()):
+        """Clear the cache entirely and cancel any in-flight revalidations."""
+        for task in self._inflight.values():
             task.cancel()
         self._cache.clear()
         self._inflight.clear()

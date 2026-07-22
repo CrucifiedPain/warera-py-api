@@ -4,6 +4,39 @@ Welcome to the WarEra Python Client migration guide! Find your target version be
 
 ---
 
+
+## Migrating to v0.2.3
+
+Version `0.2.3` is a feature-rich upgrade bringing the Python wrapper to the absolute cutting edge, including massive new architectural controls over batching, caching, and concurrency.
+
+### From v0.2.2
+If upgrading from `0.2.2`, no code changes are required! Just bump your package version.
+However, you can now take advantage of the following new architectural features:
+1. **CancellationScope (AbortController Parity)**: You can now gracefully cancel complex async workflows or pagination loops. Background batch engines will automatically prune cancelled tasks *before* they are sent over the network!
+2. **Persistent Caching**: The SWR Cache engine now supports pluggable `CacheBackend` implementations. You can natively persist `gameConfig` and static lookup data across bot restarts using the built-in `SQLiteCacheBackend`.
+3. **Request Priority Queuing**: You can tag requests with `priority=RequestPriority.HIGH`. The batching engine will surgically slice these critical tasks into the very next physical HTTP chunk, bypassing massive background queues.
+4. **Customizable Batch Limits**: You can now safely customize the underlying HTTP chunk limits via `max_batch_size` during client instantiation, giving you strict memory control for IoT or constrained environments.
+5. **Built-in Telemetry Hooks**: You can pass a `TelemetryHooks` object to observe internal rate-limit sleep durations, chunk payload efficiencies, and cache hit ratios for Datadog/Prometheus tracking. Telemetry now also receives an `on_retry(attempt, delay_seconds)` event.
+
+### Stability audit (0.2.3 re-release)
+A correctness pass on the 0.2.3 branch fixed several bugs. All public entry points documented above are unchanged, but note:
+
+- **`client.war.get(...)` now works.** The `War` model previously failed to parse the API's `_id` field, and the sync client did not expose `war` at all. Both are fixed.
+- **`warera.Battle` is now importable** from the top-level package.
+- **Removed broken duplicate methods.** A few methods that duplicated an existing, correct method (and were themselves broken) were removed. If you were calling any of these, switch to the canonical method:
+  | Removed | Use instead |
+  |---|---|
+  | `ranking.get_ranking(...)` | `ranking.get(ranking_type)` |
+  | `user.get_users_by_country(...)` | `user.get_by_country(country_id)` (paginated) |
+  | `government.get_by_country_id(...)` | `government.get(country_id)` |
+  | `company.get_recommended_region_ids_by_item_code(...)` | `company.get_recommended_regions(item_code)` |
+  | `battle.get_ranking(...)` | `client.battle_ranking.get(data_type, type, side, ...)` |
+- **`search.search_mus` / `search.search_users`** now send the correct `searchText` parameter and return parsed `SearchResult` lists.
+- Internal robustness: rate-limit accounting under concurrency, retry backoff honouring the server's `Retry-After`, SWR revalidation task handling, SQLite cache offloading + LRU eviction, cleaner `aclose()` shutdown, and cancellation across threads/tasks.
+
+---
+
+
 ## Migrating to v0.2.2
 
 Version `0.2.2` introduces massive internal stability and memory-safety patches following a comprehensive architecture audit. The public API surface is completely backwards-compatible, but the underlying engines have changed.

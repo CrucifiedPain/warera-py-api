@@ -10,6 +10,7 @@ from warera.resources.battle import BattleResource
 from warera.resources.country import CountryResource
 from warera.resources.item_trading import ItemTradingResource
 from warera.resources.user import UserResource
+from warera.resources.war import WarResource
 
 
 def _mock_http(return_value) -> MagicMock:
@@ -202,3 +203,67 @@ async def test_user_get_by_country_cursor_page():
     assert len(page.items) == 2
     assert page.items[0].username == "alice"
     assert page.has_more is False
+
+# ---------------------------------------------------------------------------
+# War
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_war_get_parses_model():
+    raw = {"id": "w1", "status": "ACTIVE", "attackerId": "7", "defenderId": "8"}
+    resource = WarResource(_mock_http(raw))
+    war = await resource.get("w1")
+
+    assert war.id == "w1"
+    assert war.status == "ACTIVE"
+    assert war.attacker_id == "7"
+
+
+@pytest.mark.asyncio
+async def test_war_get_parses_mongo_id():
+    # Real API returns `_id`, not `id`. The base WareraModel alias must apply.
+    raw = {"_id": "w2", "status": "ENDED", "attackerId": "7", "defenderId": "8"}
+    resource = WarResource(_mock_http(raw))
+    war = await resource.get("w2")
+    assert war.id == "w2"
+    assert war.status == "ENDED"
+
+
+@pytest.mark.asyncio
+async def test_war_get_sends_warId_param():
+    http = _mock_http({"_id": "w3"})
+    resource = WarResource(http)
+    await resource.get("w3")
+    # war.getById expects `warId`, not `id`.
+    _args, kwargs = http.get.call_args
+    sent = kwargs if kwargs else _args[1]
+    assert sent.get("warId") == "w3"
+    assert "id" not in sent
+
+
+def test_battle_is_exported_from_package():
+    import warera
+
+    assert hasattr(warera, "Battle")
+    assert "Battle" in warera.__all__
+
+
+def test_sync_client_exposes_war_resource():
+    import warera.sync as sync_mod
+
+    assert "war" in sync_mod._RESOURCE_NAMES
+
+
+@pytest.mark.asyncio
+async def test_search_mus_sends_searchText_and_parses_ids():
+    from warera.resources.search import SearchResource
+
+    http = _mock_http(["mu1", "mu2"])
+    resource = SearchResource(http)
+    results = await resource.search_mus("elite")
+
+    _args, kwargs = http.get.call_args
+    sent = kwargs if kwargs else _args[1]
+    assert sent.get("searchText") == "elite"
+    assert [r.id for r in results] == ["mu1", "mu2"]
+    assert all(r.type == "mu" for r in results)

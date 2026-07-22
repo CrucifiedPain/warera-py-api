@@ -33,3 +33,4 @@ class RankingResource(BaseResource):
         else:
             items = []
         return [RankingEntry.model_validate(r) for r in items]
+

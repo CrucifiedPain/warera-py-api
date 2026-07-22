@@ -14,3 +14,5 @@ class GovernmentResource(BaseResource):
         """Get the government snapshot for a country."""
         raw = await self._get("government.getByCountryId", countryId=country_id)
         return Government.model_validate(raw)
+
+

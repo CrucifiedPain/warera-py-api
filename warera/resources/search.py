@@ -46,3 +46,30 @@ class SearchResource(BaseResource):
                         )
 
         return SearchResults(results=results, total=len(results))
+
+
+    async def search_mus(self, query: str) -> list[SearchResult]:
+        """Search military units by name. Returns a list of MU matches."""
+        if not query.strip():
+            raise ValueError("query must not be empty")
+        raw = await self._get("search.searchMus", searchText=query)
+        return self._results_from_ids(raw, "mu")
+
+    async def search_users(self, query: str) -> list[SearchResult]:
+        """Search users by name or username. Returns a list of user matches."""
+        if not query.strip():
+            raise ValueError("query must not be empty")
+        raw = await self._get("search.searchUsers", searchText=query)
+        return self._results_from_ids(raw, "user")
+
+    @staticmethod
+    def _results_from_ids(raw: object, entity_type: str) -> list[SearchResult]:
+        """Build SearchResult objects from a raw list of ID strings."""
+        if not isinstance(raw, list):
+            return []
+        return [
+            SearchResult.model_validate({"id": eid, "type": entity_type})
+            for eid in raw
+            if isinstance(eid, str)
+        ]
+

@@ -1,5 +1,82 @@
 # Changelog
 
+## [0.2.3] — 2026-07-22
+
+### 🔧 Stability & Correctness Audit
+A full audit of the 0.2.3 feature branch (cancellation, SWR, batching, priority,
+telemetry) fixed the following before release. Endpoint corrections were verified
+against the live API (source-of-truth: the community API explorer).
+
+#### Critical fixes (runtime crashers)
+- **`War` model (`models/war.py`):** removed the `id: str` redefinition that shadowed
+  the base `_id` alias and made `War.model_validate()` raise on every real response
+  (the API returns `_id`). Now inherits the aliased field.
+- **`Battle` export (`__init__.py`):** `Battle` was listed in `__all__` but never
+  imported, so `warera.Battle` raised `AttributeError` and `from warera import *`
+  failed. Now imported from `.models`.
+- **Sync `war` resource (`sync.py`):** the async client exposed `client.war` but the
+  sync wrapper omitted it. Added the wrapper and registered `"war"`.
+
+#### Endpoint corrections (resources)
+- **`search.search_mus` / `search.search_users`:** were sending `{"query": …}` (HTTP 400);
+  the real param is `searchText`. Now parse the returned ID list into `SearchResult`s.
+- **`war.getById` / `tournament.getById`:** were sending `id=`; corrected to `warId` /
+  `tournamentId`.
+- **Removed broken duplicate methods** that shadowed correct canonical ones (verified
+  against the live API): `ranking.get_ranking` (wrong params), `user.get_users_by_country`
+  (mishandled the paginated response), `government.get_by_country_id` (redundant, used
+  deprecated `parse_obj`), `company.get_recommended_region_ids_by_item_code` (wrong return
+  type), `battle.get_ranking` (missing required `dataType`/`type`/`side`). Use the canonical
+  `ranking.get`, `user.get_by_country`, `government.get`, `company.get_recommended_regions`,
+  and `client.battle_ranking.get` instead.
+- Replaced all remaining Pydantic v1 `parse_obj` calls with `model_validate`.
+
+#### Concurrency & networking
+- **Cancellation (`_cancellation.py`):** guarded `ContextVar.reset()` against the
+  cross-Context `ValueError` (scope entered/exited on different tasks/threads); scopes
+  are now reusable after `cancel()`.
+- **Batch cancellation (`_http.py`):** a shared multi-item batch request is now aborted
+  only when *all* its callers have cancelled, instead of leaving it running.
+- **Rate limiting (`_http.py`):** `remaining` is decremented optimistically before
+  dispatch so concurrent bursts can't blow past the window; window-refresh detection now
+  keys off the reset timestamp instead of a rising `remaining` (robust to out-of-order
+  responses).
+- **Retry backoff (`_http.py`):** honours the server's `Retry-After` / rate-limit reset
+  timing instead of a blind exponential schedule; the `rt` header now reflects the
+  configured retryable status codes.
+- **Clean shutdown (`_http.py`):** `aclose()` now fails queued-but-unsent futures, awaits
+  the cancelled auto-batch task, and clears in-flight SWR revalidations.
+- **SWR (`_swr.py`):** revalidation now creates exactly one task per key (was two);
+  fixed a misplaced-docstring dead statement in `clear()`.
+- **Cache backends (`cache_backends.py`):** SQLite disk I/O is offloaded off the event
+  loop; SQLite eviction is now true LRU (tracks `last_access`) matching the memory
+  backend; `set()` guards non-JSON-serializable payloads.
+- **Batch (`_batch.py`):** `fetch_many_by_ids` no longer discards every chunk's results
+  when one item errors (`return_exceptions=True` + per-item `None`); unresolved batch
+  items now surface a clear error.
+
+#### Misc
+- Removed stray `pass` statements in `models/company.py`.
+- `sync._run` guards the concurrent future's state transition against a racing cancel.
+- Corrected the `RequestPriority` docstring to match actual behaviour.
+- Added a telemetry `on_retry` hook.
+
+### 🛑 Request Cancellation (AbortController)
+Added the highly requested ability to cancel in-flight API requests, inspired by Issue #30 in the TS wrapper.
+
+- **`CancellationScope` Context Manager:** Seamlessly wrap API calls in an `async with CancellationScope() as scope:` block. Calling `scope.cancel()` will instantly abort any pending tasks within that scope, throwing an `asyncio.CancelledError`.
+- **Pre-flight Batch Pruning:** Cancelled requests are caught *before* they are bundled into network calls by the auto-batching engine. If a user cancels a request while it's still waiting in the 5ms batch queue, it is silently removed, saving bandwidth and rate-limit points.
+- **Sync Shim Support:** Cancellation safely traverses the sync/async bridge! The `warera.sync.CancellationScope` can be invoked from any thread, and accurately propagates the signal down to the isolated asyncio daemon thread.
+
+### 💾 Persistent SWR Caching & Data Backends
+- **SQLite Support:** Replaced the hardcoded in-memory SWR cache with a pluggable `CacheBackend` interface (`warera.cache_backends`). You can now initialize the client with `SQLiteCacheBackend("cache.db")` to persist API responses across application restarts!
+
+### 📡 Network Telemetry & HTTP Context
+- **Telemetry Hooks:** Added a `TelemetryHooks` API. You can pass custom hooks during client initialization to receive granular event metrics like `on_cache_hit(key, is_stale)`.
+- **`.env` Auto-loading:** The `HttpSession` explicitly respects `os.environ.get("WARERA_API_KEY")` during instantiation, automatically injecting it into the `x-api-key` header for security.
+- **Header Customization:** Fixed the `user-agent` header to correctly broadcast `warera-client` across all network layers, and securely hashes the base36 `rt` retry header for rate-limit transparency.
+- **Request Priority Queue:** Internal batching has been split into priority lanes to ensure `HIGH` priority commands jump the queue.
+
 ## [0.2.2] — 2026-06-26
 
 This release patches several critical memory, concurrency, and parsing issues reported in the 3.1 Pro extended audit.
