@@ -15,10 +15,9 @@ class ActionLogResource(BaseResource):
     Endpoints:
       • actionLog.getPaginated  (cursor-paginated)
 
-    .. deprecated::
-        ``actionLog.getPaginated`` is a permission-gated endpoint that returns
-        HTTP 403 for standard API keys (no accessible output), so this resource
-        is scheduled for removal in a future release. Avoid depending on it.
+    DEPRECATED: actionLog.getPaginated is a permission-gated endpoint that
+    returns HTTP 403 for standard API keys (no accessible output), so this
+    resource is scheduled for removal in a future release. Avoid depending on it.
     """
 
     @typing.overload

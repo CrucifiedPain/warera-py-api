@@ -8,6 +8,8 @@ class SearchResource(BaseResource):
     """
     Endpoints:
       • search.searchAnything
+      • search.searchMus
+      • search.searchUsers
     """
 
     async def query(self, search_text: str) -> SearchResults:

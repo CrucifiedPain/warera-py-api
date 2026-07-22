@@ -10,6 +10,7 @@ class RegionResource(BaseResource):
     Endpoints:
       • region.getById
       • region.getRegionsObject
+      • region.getAll
     """
 
     async def get(self, region_id: str) -> Region:
