@@ -89,22 +89,17 @@ def clean_type_str(t: Any) -> str:
     return s
 
 
-def format_type_with_link(t: str, known_models: set[str] | None = None) -> str:
+def format_type(t: str) -> str:
     """
-    Render a type string as inline code, linking CamelCase tokens to their
-    on-page model anchor. Only tokens in ``known_models`` are linked, so we
-    never emit a dangling anchor to an enum or off-page type (M1). The token
-    regex allows trailing digits so names like ``UserStatsCase1ByRarity`` stay
-    a single token instead of splitting at the digit (H2).
-    """
-    def repl(m: re.Match[str]) -> str:
-        word = m.group(0)
-        if known_models is not None and word in known_models:
-            return f'<a href="#{word.lower()}">{word}</a>'
-        return word
+    Render a type string as inline code for a table cell.
 
-    formatted = re.sub(r'[A-Za-z][A-Za-z0-9]*', repl, md_cell(t))
-    return f"<code>{formatted}</code>"
+    We deliberately do NOT emit `<a>` links to model anchors: nested HTML links
+    inside a `<code>` cell render inconsistently (raw tags in some previewers)
+    and are fragile. `<code>` alone renders everywhere, and `&#124;` decodes to
+    a pipe inside the HTML element without breaking the table. Every model is
+    documented in the page's own "Data Models" section, so names stay findable.
+    """
+    return f"<code>{md_cell(t)}</code>"
 
 
 _SECTION_RE = re.compile(
@@ -222,7 +217,7 @@ def _model_field_type(field_info: dict[str, Any]) -> str:
     return type_str
 
 
-def collect_model(model: type[BaseModel], known_models: set[str]) -> dict[str, Any]:
+def collect_model(model: type[BaseModel]) -> dict[str, Any]:
     """Return a data dict describing a pydantic model's schema."""
     schema = model.model_json_schema()
     props = schema.get("properties", {})
@@ -234,7 +229,7 @@ def collect_model(model: type[BaseModel], known_models: set[str]) -> dict[str, A
         fields.append(
             {
                 "name": md_cell(field_name),
-                "type": format_type_with_link(type_str, known_models),
+                "type": format_type(type_str),
                 "required": "Required" if field_name in required else "Optional",
             }
         )
@@ -246,9 +241,7 @@ def collect_model(model: type[BaseModel], known_models: set[str]) -> dict[str, A
     }
 
 
-def collect_method(
-    method_name: str, method: Any, resource_name: str, known_models: set[str]
-) -> dict[str, Any]:
+def collect_method(method_name: str, method: Any, resource_name: str) -> dict[str, Any]:
     """Return a data dict describing a single resource method (no model schemas —
     those are collected once per page and rendered separately, see M2)."""
     sig = inspect.signature(method)
@@ -262,7 +255,7 @@ def collect_method(
         params.append(
             {
                 "name": md_cell(name),
-                "type": format_type_with_link(ptype, known_models),
+                "type": format_type(ptype),
                 "default": default,
             }
         )
@@ -304,12 +297,9 @@ def collect_resource(name: str, res: Any) -> dict[str, Any]:
         if ret_type != inspect.Signature.empty:
             all_models.update(get_pydantic_models_from_type(ret_type))
 
-    known_names = {m.__name__ for m in all_models}
-    models = [collect_model(m, known_names) for m in sorted(all_models, key=lambda m: m.__name__)]
+    models = [collect_model(m) for m in sorted(all_models, key=lambda m: m.__name__)]
 
-    methods = [
-        collect_method(mname, method, name, known_names) for mname, method in public_methods
-    ]
+    methods = [collect_method(mname, method, name) for mname, method in public_methods]
 
     return {
         "name": name,
