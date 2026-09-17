@@ -27,7 +27,7 @@ from __future__ import annotations
 from typing import Any
 
 from ._batch import MAX_BATCH_SIZE, BatchSession
-from ._http import DEFAULT_BASE_URL, HttpSession, OnRetryCallback
+from ._http import DEFAULT_BASE_URL, STATS_BASE_URL, HttpSession, OnRetryCallback
 from .cache_backends import CacheBackend
 from .resources.action_log import ActionLogResource
 from .resources.alliance import AllianceResource
@@ -124,7 +124,8 @@ class WareraClient:
         self,
         api_key: str | None = None,
         *,
-        base_url: str = DEFAULT_BASE_URL,
+        base_url: str | None = None,
+        use_stats_gateway: bool = False,
         timeout: float = 30.0,
         max_retries: int = 3,
         initial_delay_ms: int = 250,
@@ -143,10 +144,12 @@ class WareraClient:
     ) -> None:
         """
         Args:
-            api_key:              X-API-Key token. If None, also checks WARERA_API_KEY
+            api_key:              Your WarEra API key. If omitted, falls back to the ``WARERA_API_KEY``
                                   environment variable. Omitting auth works but gives
                                   lower rate limits.
             base_url:             Override the API base URL (useful for testing).
+            use_stats_gateway:    If True, uses ``https://gateway.warerastats.io/trpc`` as the backend
+                                  which provides caching, batching optimizations, and data storage.
             timeout:              HTTP request timeout in seconds.
             max_retries:          Max retry attempts for 429 / 5xx errors.
             initial_delay_ms:     Initial retry delay in milliseconds (default: 250).
@@ -168,6 +171,12 @@ class WareraClient:
             cache_backend:        An optional CacheBackend instance to back the SWR Cache.
                                   Defaults to an in-memory dictionary.
         """
+        if base_url is not None and use_stats_gateway:
+            raise ValueError("Cannot specify both `base_url` and `use_stats_gateway=True`")
+
+        if base_url is None:
+            base_url = DEFAULT_BASE_URL
+
         self._http = HttpSession(
             api_key=api_key,
             base_url=base_url,
@@ -184,6 +193,7 @@ class WareraClient:
             on_retry=on_retry,
             cache_backend=cache_backend,
             telemetry=telemetry,
+            use_stats_gateway=use_stats_gateway,
             max_batch_size=min(max_batch_size, MAX_BATCH_SIZE),
         )
         # Clamp to server hard limit — the API rejects batches > 50 procedures.

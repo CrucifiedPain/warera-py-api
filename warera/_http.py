@@ -63,6 +63,24 @@ logger = logging.getLogger("warera.http")
 
 # Public constant so client.py can import it instead of duplicating the string.
 DEFAULT_BASE_URL = "https://api2.warera.io/trpc"
+STATS_BASE_URL = "https://gateway.warerastats.io/trpc"
+
+STATS_SUPPORTED_ENDPOINTS = frozenset([
+    "company.getById", "company.getCompanies", "country.getCountryById",
+    "country.getAllCountries", "event.getEventsPaginated", "government.getByCountryId",
+    "region.getById", "region.getRegionsObject", "battle.getById",
+    "battle.getLiveBattleData", "battle.getBattles", "round.getById",
+    "round.getLastHits", "battleRanking.getRanking", "itemTrading.getPrices",
+    "tradingOrder.getTopOrders", "itemOffer.getById", "workOffer.getById",
+    "workOffer.getWorkOfferByCompanyId", "workOffer.getWorkOffersPaginated",
+    "ranking.getRanking", "search.searchAnything", "gameConfig.getDates",
+    "gameConfig.getGameConfig", "user.getUserLite", "user.getUsersByCountry",
+    "user.getUserById", "article.getArticleById", "article.getArticleLiteById",
+    "article.getArticlesPaginated", "mu.getById", "mu.getManyPaginated",
+    "upgrade.getUpgradeByTypeAndEntity", "worker.getWorkers",
+    "worker.getTotalWorkersCount", "battleOrder.getByBattle",
+    "inventory.fetchCurrentEquipment"
+])
 
 
 @dataclass(frozen=True)
@@ -274,6 +292,7 @@ class HttpSession:
         cache_backend: CacheBackend | None = None,
         telemetry: TelemetryHooks | None = None,
         max_batch_size: int = 50,
+        use_stats_gateway: bool = False,
     ) -> None:
         # Resolve API key: explicit arg > env var > None
         self._api_key: str | None = api_key or os.environ.get(_ENV_KEY)
@@ -303,6 +322,7 @@ class HttpSession:
             else {408, 409, 425, 429, 500, 502, 503, 504}
         )
         self._max_batch_size = max_batch_size
+        self._use_stats_gateway = use_stats_gateway
 
     def _is_retryable(self, exc: BaseException) -> bool:
         """Retry on specific status codes and network errors."""
@@ -565,7 +585,11 @@ class HttpSession:
             encoded = quote(_orjson.dumps(clean).decode("utf-8"), safe="")
         else:
             encoded = quote(json.dumps(clean, separators=(",", ":")), safe="")
-        url = f"/{procedure}?input={encoded}"
+        
+        if self._use_stats_gateway and procedure in STATS_SUPPORTED_ENDPOINTS:
+            url = f"{STATS_BASE_URL}/{procedure}?input={encoded}"
+        else:
+            url = f"/{procedure}?input={encoded}"
 
         response = await self._get_with_retry(url)
         return self._unwrap_single(response, procedure)
@@ -620,7 +644,10 @@ class HttpSession:
             # Fast path: fits in one request.
             if len(procedures) <= effective:
                 proc_path = ",".join(procedures)
-                url = f"/{proc_path}?batch=1"
+                if self._use_stats_gateway and all(p in STATS_SUPPORTED_ENDPOINTS for p in procedures):
+                    url = f"{STATS_BASE_URL}/{proc_path}?batch=1"
+                else:
+                    url = f"/{proc_path}?batch=1"
                 body = {str(i): inp for i, inp in enumerate(clean_inputs)}
                 raw_list = await self._post_batch_with_retry(url, body)
                 return self._unwrap_batch(raw_list, procedures)
@@ -635,7 +662,10 @@ class HttpSession:
 
             async def _run_chunk(procs: list[str], inps: list[dict[str, Any]]) -> list[Any]:
                 proc_path = ",".join(procs)
-                url = f"/{proc_path}?batch=1"
+                if self._use_stats_gateway and all(p in STATS_SUPPORTED_ENDPOINTS for p in procs):
+                    url = f"{STATS_BASE_URL}/{proc_path}?batch=1"
+                else:
+                    url = f"/{proc_path}?batch=1"
                 body = {str(i): inp for i, inp in enumerate(inps)}
                 raw = await self._post_batch_with_retry(url, body)
                 return self._unwrap_batch(raw, procs)
