@@ -533,3 +533,55 @@ async def test_on_retry_not_called_on_first_try_success():
         await session.get("country.getAllCountries", {})
 
     assert calls == []
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_dynamic_routing_supported_endpoint():
+    from warera._http import STATS_BASE_URL
+    # The interceptor will fail the test if the URL doesn't match the stats gateway
+    respx.get(url__startswith=STATS_BASE_URL).mock(
+        return_value=httpx.Response(200, json=_make_trpc_ok({"ok": True}))
+    )
+    async with HttpSession(base_url=BASE, use_stats_gateway=True) as session:
+        # A supported endpoint
+        await session.get("user.getUserLite", {})
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_dynamic_routing_unsupported_endpoint():
+    # Should route to the default base URL
+    respx.get(url__startswith=BASE).mock(
+        return_value=httpx.Response(200, json=_make_trpc_ok({"ok": True}))
+    )
+    async with HttpSession(base_url=BASE, use_stats_gateway=True) as session:
+        # An unsupported endpoint
+        await session.get("unsupported.endpoint", {})
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_dynamic_routing_batch_mixed():
+    # Should route to default base url if any is unsupported
+    respx.post(url__startswith=BASE).mock(
+        return_value=httpx.Response(
+            200, json=[_make_trpc_ok({"ok": 1}), _make_trpc_ok({"ok": 2})]
+        )
+    )
+    async with HttpSession(base_url=BASE, use_stats_gateway=True) as session:
+        await session.post_batch(["user.getUserLite", "unsupported.endpoint"], [{}, {}])
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_dynamic_routing_batch_all_supported():
+    from warera._http import STATS_BASE_URL
+    respx.post(url__startswith=STATS_BASE_URL).mock(
+        return_value=httpx.Response(
+            200, json=[_make_trpc_ok({"ok": 1}), _make_trpc_ok({"ok": 2})]
+        )
+    )
+    async with HttpSession(base_url=BASE, use_stats_gateway=True) as session:
+        await session.post_batch(["user.getUserLite", "company.getById"], [{}, {}])
+

@@ -776,9 +776,9 @@ class TestSyncProxy(unittest.TestCase):
                     yield i
 
         proxy = _SyncResourceProxy(FakeResource())
-        result = proxy.paginate()
-        self.assertIsInstance(result, Iterator)
-        self.assertEqual(list(result), [0, 1, 2])
+        gen = proxy.paginate()
+        self.assertIsInstance(gen, Iterator)
+        self.assertEqual(list(gen), [0, 1, 2])
 
     def test_sync_proxy_passes_through_non_async_attr(self):
         from warera.sync import _SyncResourceProxy  # noqa: PLC0415
@@ -792,3 +792,19 @@ class TestSyncProxy(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+class TestContributionResource(unittest.TestCase):
+    def _resource(self, return_value):
+        from warera.resources.contribution import ContributionResource
+
+        http = mock.MagicMock()
+        http.get = mock.AsyncMock(return_value=return_value)
+        http.get_swr = mock.AsyncMock(return_value=return_value)
+        return ContributionResource(http)
+
+    def test_get_country_unrest_contributions(self):
+        raw = [{"citizenId": "123", "value": 50}]
+        result = run(self._resource(raw).get_country_unrest_contributions("1"))
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].citizen_id, "123")
+        self.assertEqual(result[0].value, 50)
