@@ -7,6 +7,7 @@ class ItemPrice(WareraModel):
     item_code: str | None = None
     price: float | None = None
     quantity: int | None = None
+    wooden_case: float | None = None
     country_id: str | None = None
     updated_at: str | None = None
 

@@ -7,9 +7,10 @@ from ._base import BaseResource
 class WorkResource(BaseResource):
     """
     Endpoints:
-      • work.getStatsByUserId
       • work.getStatsByCompany
+      • work.getStatsByUserId
       • work.getStatsByWorkerAndCompany
+      • work.getStatsByWorker
     """
 
     async def get_stats_by_user(
@@ -92,6 +93,19 @@ class WorkResource(BaseResource):
             timezone=timezone,
         )
         return self._parse_stats_list(raw)
+
+    async def get_stats_by_worker(
+        self,
+        worker_id: str,
+        days: int = 7,
+        timezone: str | None = None,
+    ) -> list[WorkStats]:
+        """Get work history for a specific worker (by worker ID, not user ID)."""
+        kwargs: dict[str, Any] = {"workerId": worker_id, "days": days}
+        if timezone is not None:
+            kwargs["timezone"] = timezone
+        raw = await self._get("work.getStatsByWorker", **kwargs)
+        return [WorkStats.model_validate(w) for w in raw]
 
     @staticmethod
     def _parse_stats_list(raw: object) -> list[WorkStats]:

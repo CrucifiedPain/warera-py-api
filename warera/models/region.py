@@ -69,6 +69,8 @@ class Region(WareraModel):
     development: float | None = None
     base_development: float | None = None
     current_population: int | None = None
+    population: int | None = None
+    residents: int | None = None
     resistance: float | None = None
     resistance_max: float | None = None
     strategic_resource: str | None = None

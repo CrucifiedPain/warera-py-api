@@ -37,12 +37,15 @@ from .resources.battle_loot_summary import BattleLootSummaryResource
 from .resources.battle_order import BattleOrderResource
 from .resources.battle_ranking import BattleRankingResource
 from .resources.company import CompanyResource
+from .resources.contribution import ContributionResource
 from .resources.country import CountryResource
+from .resources.country_diplomacy import CountryDiplomacyResource
 from .resources.donation import DonationResource
 from .resources.election import ElectionResource
 from .resources.event import EventResource
 from .resources.game_config import GameConfigResource
 from .resources.game_stat import GameStatResource
+from .resources.giveaway import GiveawayResource
 from .resources.government import GovernmentResource
 from .resources.inventory import InventoryResource
 from .resources.item_trading import ItemTradingResource
@@ -53,7 +56,9 @@ from .resources.party import PartyResource
 from .resources.ranking import RankingResource
 from .resources.region import RegionResource
 from .resources.round_ import RoundResource
+from .resources.sanction import SanctionResource
 from .resources.search import SearchResource
+from .resources.shop import ShopResource
 from .resources.tournament import TournamentResource
 from .resources.transaction import TransactionResource
 from .resources.upgrade import UpgradeResource
@@ -77,7 +82,9 @@ class WareraClient:
     All resource namespaces are exposed as attributes:
         client.user          → UserResource
         client.company       → CompanyResource
+        client.contribution  → ContributionResource
         client.country       → CountryResource
+        client.country_diplomacy → CountryDiplomacyResource
         client.government    → GovernmentResource
         client.region        → RegionResource
         client.battle        → BattleResource
@@ -100,6 +107,8 @@ class WareraClient:
         client.upgrade       → UpgradeResource
         client.article       → ArticleResource
         client.search        → SearchResource
+        client.sanction      → SanctionResource
+        client.shop          → ShopResource
         client.game_config   → GameConfigResource
         client.inventory     → InventoryResource
         client.action_log    → ActionLogResource
@@ -107,6 +116,7 @@ class WareraClient:
         client.mercenary_contract_auction → MercenaryContractAuctionResource
         client.tournament    → TournamentResource
         client.alliance      → AllianceResource
+        client.giveaway      → GiveawayResource
         client.war           → WarResource
     """
 
@@ -184,7 +194,9 @@ class WareraClient:
         self.alliance = AllianceResource(self._http)
         self.user = UserResource(self._http)
         self.company = CompanyResource(self._http)
+        self.contribution = ContributionResource(self._http)
         self.country = CountryResource(self._http)
+        self.country_diplomacy = CountryDiplomacyResource(self._http)
         self.government = GovernmentResource(self._http)
         self.region = RegionResource(self._http)
         self.battle = BattleResource(self._http)
@@ -209,10 +221,13 @@ class WareraClient:
         self.upgrade = UpgradeResource(self._http)
         self.article = ArticleResource(self._http)
         self.search = SearchResource(self._http)
+        self.sanction = SanctionResource(self._http)
+        self.shop = ShopResource(self._http)
         self.game_config = GameConfigResource(self._http)
         self.inventory = InventoryResource(self._http)
         self.action_log = ActionLogResource(self._http)
         self.tournament = TournamentResource(self._http)
+        self.giveaway = GiveawayResource(self._http)
         self.war = WarResource(self._http)
 
     # ------------------------------------------------------------------

@@ -1,13 +1,20 @@
 from __future__ import annotations
 
+from typing import Any
+
 from ._base import BaseResource
 
 
 class GameStatResource(BaseResource):
     """
     Endpoints:
+      • gameStat.getWorldDevelopment
       • gameStat.getEquipmentAvgByCode
     """
+
+    async def get_world_development(self) -> dict[str, Any]:
+        """Get the world development statistics."""
+        return await self._get("gameStat.getWorldDevelopment")
 
     async def get_equipment_avg(self, item_code: str) -> float:
         """

@@ -7,6 +7,7 @@ from .battle_order import BattleOrder
 from .battle_ranking import BattleRankingEntry
 from .common import CursorPage, ReprMixin, WareraModel
 from .company import Company
+from .contribution import UnrestContribution
 from .country import (
     Country,
     CountryRankings,
@@ -16,10 +17,12 @@ from .country import (
     CountryTaxes,
     CountryUnrest,
 )
+from .country_diplomacy import CountryDiplomacy
 from .donation import Donation, DonationTotals
 from .election import Election, ElectionCandidate
 from .event import Event
 from .game_config import GameConfig, GameDates
+from .giveaway import Giveaway
 from .government import Government, GovernmentDates
 from .inventory import Equipment, EquipmentSkills
 from .item_trading import ItemOffer, ItemPrice, TradingOrder
@@ -36,7 +39,9 @@ from .party import Party, PartyEthics
 from .ranking import RankingEntry
 from .region import Region
 from .round_ import Hit, Round
+from .sanction import Sanction
 from .search import SearchResult, SearchResults
+from .shop import ShopGift, ShopGiftGiver, ShopSubscribedUser
 from .tournament import (
     Tournament,
     TournamentMatch,
@@ -86,6 +91,7 @@ __all__ = [
     "CountryStrategicResources",
     "CountryTaxes",
     "CountryUnrest",
+    "CountryDiplomacy",
     "CursorPage",
     "Donation",
     "DonationTotals",
@@ -96,6 +102,7 @@ __all__ = [
     "Event",
     "GameConfig",
     "GameDates",
+    "Giveaway",
     "Government",
     "GovernmentDates",
     "Hit",
@@ -116,8 +123,12 @@ __all__ = [
     "Region",
     "ReprMixin",
     "Round",
+    "Sanction",
     "SearchResult",
     "SearchResults",
+    "ShopGift",
+    "ShopGiftGiver",
+    "ShopSubscribedUser",
     "SkillDetail",
     "Tournament",
     "TournamentMatch",
@@ -126,6 +137,7 @@ __all__ = [
     "TournamentTeam",
     "TradingOrder",
     "Transaction",
+    "UnrestContribution",
     "Upgrade",
     "User",
     "UserDates",

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ..models.country import Country
+from ..models.country import Country, CountryUnrest
 from ._base import BaseResource
 
 
@@ -9,6 +9,7 @@ class CountryResource(BaseResource):
     Endpoints:
       • country.getCountryById
       • country.getAllCountries
+      • country.getUnrestData
     """
 
     async def get(self, country_id: str) -> Country:
@@ -41,3 +42,8 @@ class CountryResource(BaseResource):
             if country.name and country.name.lower() == name_lower:
                 return country
         return None
+
+    async def get_unrest_data(self, country_id: str) -> CountryUnrest:
+        """Get unrest data for a country."""
+        raw = await self._get("country.getUnrestData", countryId=country_id)
+        return CountryUnrest.model_validate(raw)

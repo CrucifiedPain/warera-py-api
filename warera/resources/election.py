@@ -12,6 +12,7 @@ class ElectionResource(BaseResource):
     """
     Endpoints:
       • election.getElections  (cursor-paginated)
+      • election.getElection
     """
 
     @typing.overload
@@ -88,6 +89,11 @@ class ElectionResource(BaseResource):
             direction=direction,
         )
         return CursorPage.from_raw(raw, Election)
+
+    async def get(self, election_id: str) -> Election:
+        """Get a specific election by ID."""
+        raw = await self._get("election.getElection", electionId=election_id)
+        return Election.model_validate(raw)
 
     async def get_by_country(self, country_id: str) -> list[Election]:
         """Convenience: fetch all elections in a given country."""

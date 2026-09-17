@@ -15,11 +15,19 @@ class ArticleResource(BaseResource):
       • article.getArticleById
       • article.getArticleLiteById
       • article.getArticlesPaginated  (cursor-paginated)
+      • article.getWelcomeArticleByCountryId
     """
 
     async def get(self, article_id: str) -> Article:
         """Get a full article by ID (includes content body)."""
         raw = await self._get("article.getArticleById", articleId=article_id)
+        return Article.model_validate(raw)
+
+    async def get_welcome_article_by_country_id(self, country_id: str) -> Article | None:
+        """Get the welcome article for a country by its ID."""
+        raw = await self._get("article.getWelcomeArticleByCountryId", countryId=country_id)
+        if not raw:
+            return None
         return Article.model_validate(raw)
 
     async def get_lite(self, article_id: str) -> ArticleLite:

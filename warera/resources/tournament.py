@@ -7,7 +7,9 @@ from ._base import BaseResource
 class TournamentResource(BaseResource):
     """
     Endpoints:
+      • tournament.getById
       • tournament.getLastTournament
+      • tournament.getManyPaginated
       • tournamentTeam.getById
       • tournamentTeam.getByTournamentId
     """
@@ -16,6 +18,19 @@ class TournamentResource(BaseResource):
         """Get the latest tournament details."""
         raw = await self._get("tournament.getLastTournament")
         return Tournament.model_validate(raw)
+
+    async def get_many_paginated(
+        self, *, limit: int | None = None, cursor: str | None = None
+    ) -> CursorPage[Tournament]:
+        """Get tournaments with cursor pagination."""
+        kwargs = {}
+        if limit is not None:
+            kwargs["limit"] = limit
+        if cursor is not None:
+            kwargs["cursor"] = cursor
+        raw = await self._get("tournament.getManyPaginated", **kwargs)
+        from ..models.common import CursorPage
+        return CursorPage.from_raw(raw, Tournament)
 
     async def get_team_by_id(self, tournament_team_id: str) -> TournamentTeam:
         """Get a tournament team by its ID."""
