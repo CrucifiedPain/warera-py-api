@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from ._base import BaseResource
 
@@ -14,7 +14,8 @@ class GameStatResource(BaseResource):
 
     async def get_world_development(self) -> dict[str, Any]:
         """Get the world development statistics."""
-        return await self._get("gameStat.getWorldDevelopment")
+        res = await self._get("gameStat.getWorldDevelopment")
+        return cast(dict[str, Any], res)
 
     async def get_equipment_avg(self, item_code: str) -> float:
         """

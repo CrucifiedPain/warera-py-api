@@ -1,8 +1,11 @@
 from __future__ import annotations
+
 from typing import Any
+
 from ..models.common import CursorPage
 from ..models.giveaway import Giveaway
 from ._base import BaseResource
+
 
 class GiveawayResource(BaseResource):
     """

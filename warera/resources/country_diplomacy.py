@@ -1,6 +1,8 @@
 from __future__ import annotations
+
 from ..models.country_diplomacy import CountryDiplomacy
 from ._base import BaseResource
+
 
 class CountryDiplomacyResource(BaseResource):
     """

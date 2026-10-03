@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 from .common import WareraModel
+
 
 class CountryDiplomacy(WareraModel):
     country_id: str | None = None

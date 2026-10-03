@@ -1,6 +1,8 @@
 from __future__ import annotations
-from ..models.shop import ShopGift, ShopSubscribedUser, ShopGiftGiver
+
+from ..models.shop import ShopGift, ShopGiftGiver, ShopSubscribedUser
 from ._base import BaseResource
+
 
 class ShopResource(BaseResource):
     """

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from typing import Any
+
+from ..models.common import CursorPage
 from ..models.tournament import Tournament, TournamentTeam
 from ._base import BaseResource
 
@@ -23,13 +26,12 @@ class TournamentResource(BaseResource):
         self, *, limit: int | None = None, cursor: str | None = None
     ) -> CursorPage[Tournament]:
         """Get tournaments with cursor pagination."""
-        kwargs = {}
+        kwargs: dict[str, Any] = {}
         if limit is not None:
             kwargs["limit"] = limit
         if cursor is not None:
             kwargs["cursor"] = cursor
         raw = await self._get("tournament.getManyPaginated", **kwargs)
-        from ..models.common import CursorPage
         return CursorPage.from_raw(raw, Tournament)
 
     async def get_team_by_id(self, tournament_team_id: str) -> TournamentTeam:

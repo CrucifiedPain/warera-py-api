@@ -27,7 +27,7 @@ from __future__ import annotations
 from typing import Any
 
 from ._batch import MAX_BATCH_SIZE, BatchSession
-from ._http import DEFAULT_BASE_URL, STATS_BASE_URL, HttpSession, OnRetryCallback
+from ._http import DEFAULT_BASE_URL, HttpSession, OnRetryCallback
 from .cache_backends import CacheBackend
 from .resources.action_log import ActionLogResource
 from .resources.alliance import AllianceResource

@@ -6,9 +6,9 @@ from .battle_loot_summary import BattleLootSummaryResource
 from .battle_order import BattleOrderResource
 from .battle_ranking import BattleRankingResource
 from .company import CompanyResource
+from .contribution import ContributionResource
 from .country import CountryResource
 from .country_diplomacy import CountryDiplomacyResource
-from .contribution import ContributionResource
 from .donation import DonationResource
 from .election import ElectionResource
 from .event import EventResource
