@@ -13,12 +13,18 @@ class ShopResource(BaseResource):
     """
     async def get_last_gifts(self) -> list[ShopGift]:
         raw = await self._get("shop.getLastGifts")
-        return [ShopGift.model_validate(r) for r in raw]
+        if isinstance(raw, list):
+            return [ShopGift.model_validate(r) for r in raw if isinstance(r, dict)]
+        return []
 
     async def get_subscribed_users(self) -> list[ShopSubscribedUser]:
         raw = await self._get("shop.getSubscribedUsers")
-        return [ShopSubscribedUser.model_validate(r) for r in raw]
+        if isinstance(raw, list):
+            return [ShopSubscribedUser.model_validate(r) for r in raw if isinstance(r, dict)]
+        return []
 
     async def get_top_gift_givers(self) -> list[ShopGiftGiver]:
         raw = await self._get("shop.getTopGiftGivers")
-        return [ShopGiftGiver.model_validate(r) for r in raw]
+        if isinstance(raw, list):
+            return [ShopGiftGiver.model_validate(r) for r in raw if isinstance(r, dict)]
+        return []

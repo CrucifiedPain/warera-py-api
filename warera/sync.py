@@ -295,6 +295,12 @@ class WareraClient:
         self.inventory = _wrap_resource(self._async_client.inventory)
         self.action_log = _wrap_resource(self._async_client.action_log)
         self.tournament = _wrap_resource(self._async_client.tournament)
+        self.contribution = _wrap_resource(self._async_client.contribution)
+        self.country_diplomacy = _wrap_resource(self._async_client.country_diplomacy)
+        self.giveaway = _wrap_resource(self._async_client.giveaway)
+        self.sanction = _wrap_resource(self._async_client.sanction)
+        self.shop = _wrap_resource(self._async_client.shop)
+        self.war = _wrap_resource(self._async_client.war)
 
     def batch(
         self, max_batch_size: int | None = None, concurrency: int | None = None
@@ -378,12 +384,15 @@ _RESOURCE_NAMES = {
     "battle_order",
     "battle_ranking",
     "company",
+    "contribution",
     "country",
+    "country_diplomacy",
     "donation",
     "election",
     "event",
     "game_config",
     "game_stat",
+    "giveaway",
     "government",
     "inventory",
     "item_trading",
@@ -394,11 +403,14 @@ _RESOURCE_NAMES = {
     "ranking",
     "region",
     "round",
+    "sanction",
     "search",
+    "shop",
     "tournament",
     "transaction",
     "upgrade",
     "user",
+    "war",
     "work",
     "work_offer",
     "worker",

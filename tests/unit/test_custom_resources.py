@@ -7,13 +7,21 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from warera.resources.alliance import AllianceResource
+from warera.resources.article import ArticleResource
 from warera.resources.company import CompanyResource
+from warera.resources.contribution import ContributionResource
+from warera.resources.country import CountryResource
+from warera.resources.country_diplomacy import CountryDiplomacyResource
 from warera.resources.donation import DonationResource
 from warera.resources.election import ElectionResource
 from warera.resources.game_stat import GameStatResource
+from warera.resources.giveaway import GiveawayResource
 from warera.resources.item_trading import ItemTradingResource
 from warera.resources.mu_member import MuMemberResource
 from warera.resources.party import PartyResource
+from warera.resources.sanction import SanctionResource
+from warera.resources.shop import ShopResource
+from warera.resources.tournament import TournamentResource
 from warera.resources.work import WorkResource
 from warera.resources.work_offer import WorkOfferResource
 from warera.resources.worker import WorkerResource
@@ -698,3 +706,164 @@ async def test_alliance_get_paginated_returns_cursor_page():
     assert page.items[0].name == "Alliance One"
     assert page.next_cursor == "cursor123"
     assert page.has_more is True
+
+
+# ---------------------------------------------------------------------------
+# Contribution
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_contribution_get_country_unrest_contributions():
+    raw = [{"citizenId": "c1", "value": 100}]
+    resource = ContributionResource(_mock_http(raw))
+    results = await resource.get_country_unrest_contributions("country_1")
+
+    assert len(results) == 1
+    assert results[0].citizen_id == "c1"
+    assert results[0].value == 100
+
+
+@pytest.mark.asyncio
+async def test_contribution_get_region_contributions():
+    raw = [{"citizenId": "c2", "value": 50}]
+    resource = ContributionResource(_mock_http(raw))
+    results = await resource.get_region_contributions("region_1")
+
+    assert len(results) == 1
+    assert results[0].citizen_id == "c2"
+    assert results[0].value == 50
+
+
+# ---------------------------------------------------------------------------
+# Country Diplomacy
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_country_diplomacy_get_by_country():
+    raw = {"countryId": "c1", "allies": ["c2", "c3"]}
+    resource = CountryDiplomacyResource(_mock_http(raw))
+    dip = await resource.get_by_country("c1")
+
+    assert dip.country_id == "c1"
+    assert dip.allies == ["c2", "c3"]
+
+
+# ---------------------------------------------------------------------------
+# Giveaway
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_giveaway_get_many_paginated():
+    raw = {"items": [{"id": "g1"}], "nextCursor": "c1", "hasMore": False}
+    resource = GiveawayResource(_mock_http(raw))
+    page = await resource.get_many_paginated(limit=5)
+
+    assert len(page.items) == 1
+    assert page.items[0].id == "g1"
+    assert page.next_cursor == "c1"
+    assert page.has_more is False
+
+
+# ---------------------------------------------------------------------------
+# Sanction
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_sanction_get_paginated():
+    raw = {"items": [{"targetUserId": "u1", "type": "trade"}], "nextCursor": None, "hasMore": False}
+    resource = SanctionResource(_mock_http(raw))
+    page = await resource.get_paginated(target_user_id="u1")
+
+    assert len(page.items) == 1
+    assert page.items[0].target_user_id == "u1"
+    assert page.items[0].type == "trade"
+
+
+# ---------------------------------------------------------------------------
+# Shop
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_shop_endpoints():
+    resource_gifts = ShopResource(_mock_http([{"id": "gift1"}]))
+    gifts = await resource_gifts.get_last_gifts()
+    assert len(gifts) == 1
+
+    resource_users = ShopResource(_mock_http([{"userId": "u1"}]))
+    users = await resource_users.get_subscribed_users()
+    assert len(users) == 1
+
+    resource_givers = ShopResource(_mock_http([{"userId": "u2"}]))
+    givers = await resource_givers.get_top_gift_givers()
+    assert len(givers) == 1
+
+
+# ---------------------------------------------------------------------------
+# Additional new methods
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_election_get_by_id():
+    raw = {"_id": "e1", "country": "c1", "type": "presidential"}
+    resource = ElectionResource(_mock_http(raw))
+    election = await resource.get("e1")
+
+    assert election.id == "e1"
+    assert election.country == "c1"
+
+
+@pytest.mark.asyncio
+async def test_country_get_unrest_data():
+    raw = {"bar": 25.0, "barMax": 100.0}
+    resource = CountryResource(_mock_http(raw))
+    unrest = await resource.get_unrest_data("c1")
+
+    assert unrest.bar == 25.0
+    assert unrest.bar_max == 100.0
+
+
+@pytest.mark.asyncio
+async def test_article_get_welcome_article():
+    raw = {"_id": "art_w", "title": "Welcome to Country"}
+    resource = ArticleResource(_mock_http(raw))
+    art = await resource.get_welcome_article_by_country_id("c1")
+
+    assert art is not None
+    assert art.id == "art_w"
+    assert art.title == "Welcome to Country"
+
+
+@pytest.mark.asyncio
+async def test_work_get_stats_by_worker():
+    raw = [{"workerId": "w1", "days": 7, "production": 50.0}]
+    resource = WorkResource(_mock_http(raw))
+    stats = await resource.get_stats_by_worker("w1", days=7)
+
+    assert len(stats) == 1
+    assert stats[0].worker_id == "w1"
+
+
+@pytest.mark.asyncio
+async def test_tournament_get_many_paginated():
+    raw = {"items": [{"_id": "t1"}], "nextCursor": None, "hasMore": False}
+    resource = TournamentResource(_mock_http(raw))
+    page = await resource.get_many_paginated(limit=1)
+
+    assert len(page.items) == 1
+    assert page.items[0].id == "t1"
+
+
+@pytest.mark.asyncio
+async def test_game_stat_get_world_development():
+    raw = {"totalDevelopment": 12345.6}
+    resource = GameStatResource(_mock_http(raw))
+    dev = await resource.get_world_development()
+
+    assert dev["totalDevelopment"] == 12345.6
+

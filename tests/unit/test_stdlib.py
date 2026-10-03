@@ -704,9 +704,18 @@ class TestClientAssembly(unittest.TestCase):
             client = WareraClient(api_key="test")
 
         import warera
+        import warera.sync
 
         for attr in warera._RESOURCE_NAMES:
-            self.assertTrue(hasattr(client, attr), f"Missing resource: {attr}")
+            self.assertTrue(hasattr(client, attr), f"Missing async resource: {attr}")
+
+        # Also test sync client assembly
+        with mock.patch("warera.sync._AsyncClient", return_value=client):
+            sync_client = warera.sync.WareraClient(api_key="test")
+            for attr in warera.sync._RESOURCE_NAMES:
+                self.assertTrue(hasattr(sync_client, attr), f"Missing sync resource: {attr}")
+
+        self.assertEqual(warera._RESOURCE_NAMES, warera.sync._RESOURCE_NAMES)
 
     def test_batch_returns_batch_session(self):
         from warera._batch import BatchSession  # noqa: PLC0415

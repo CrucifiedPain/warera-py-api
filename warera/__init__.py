@@ -31,9 +31,12 @@ from ._enums import (
     BattleRankingEntityType,
     BattleRankingSide,
     EventType,
+    ItemCode,
     MercenaryAuctionStatus,
     RankingType,
     RequestPriority,
+    SortBy,
+    SortOrder,
     TransactionType,
     UpgradeType,
 )
@@ -72,6 +75,7 @@ from .models import (
     CountryStrategicResources,
     CountryTaxes,
     CountryUnrest,
+    CountryDiplomacy,
     CursorPage,
     Donation,
     DonationTotals,
@@ -82,6 +86,7 @@ from .models import (
     Event,
     GameConfig,
     GameDates,
+    Giveaway,
     Government,
     GovernmentDates,
     Hit,
@@ -102,8 +107,12 @@ from .models import (
     Region,
     ReprMixin,
     Round,
+    Sanction,
     SearchResult,
     SearchResults,
+    ShopGift,
+    ShopGiftGiver,
+    ShopSubscribedUser,
     SkillDetail,
     Tournament,
     TournamentMatch,
@@ -112,6 +121,7 @@ from .models import (
     TournamentTeam,
     TradingOrder,
     Transaction,
+    UnrestContribution,
     Upgrade,
     User,
     UserDates,
@@ -122,6 +132,7 @@ from .models import (
     UserSkills,
     UserStats,
     War,
+    WarSide,
     WareraModel,
     Worker,
     WorkerCount,
@@ -139,12 +150,15 @@ if typing.TYPE_CHECKING:
     from .resources.battle_order import BattleOrderResource
     from .resources.battle_ranking import BattleRankingResource
     from .resources.company import CompanyResource
+    from .resources.contribution import ContributionResource
     from .resources.country import CountryResource
+    from .resources.country_diplomacy import CountryDiplomacyResource
     from .resources.donation import DonationResource
     from .resources.election import ElectionResource
     from .resources.event import EventResource
     from .resources.game_config import GameConfigResource
     from .resources.game_stat import GameStatResource
+    from .resources.giveaway import GiveawayResource
     from .resources.government import GovernmentResource
     from .resources.inventory import InventoryResource
     from .resources.item_trading import ItemTradingResource
@@ -155,7 +169,9 @@ if typing.TYPE_CHECKING:
     from .resources.ranking import RankingResource
     from .resources.region import RegionResource
     from .resources.round_ import RoundResource
+    from .resources.sanction import SanctionResource
     from .resources.search import SearchResource
+    from .resources.shop import ShopResource
     from .resources.tournament import TournamentResource
     from .resources.transaction import TransactionResource
     from .resources.upgrade import UpgradeResource
@@ -173,12 +189,15 @@ if typing.TYPE_CHECKING:
     battle_order: BattleOrderResource
     battle_ranking: BattleRankingResource
     company: CompanyResource
+    contribution: ContributionResource
     country: CountryResource
+    country_diplomacy: CountryDiplomacyResource
     donation: DonationResource
     election: ElectionResource
     event: EventResource
     game_config: GameConfigResource
     game_stat: GameStatResource
+    giveaway: GiveawayResource
     government: GovernmentResource
     inventory: InventoryResource
     item_trading: ItemTradingResource
@@ -189,7 +208,9 @@ if typing.TYPE_CHECKING:
     ranking: RankingResource
     region: RegionResource
     round: RoundResource
+    sanction: SanctionResource
     search: SearchResource
+    shop: ShopResource
     tournament: TournamentResource
     transaction: TransactionResource
     upgrade: UpgradeResource
@@ -243,12 +264,15 @@ _RESOURCE_NAMES = {
     "battle_order",
     "battle_ranking",
     "company",
+    "contribution",
     "country",
+    "country_diplomacy",
     "donation",
     "election",
     "event",
     "game_config",
     "game_stat",
+    "giveaway",
     "government",
     "inventory",
     "item_trading",
@@ -259,7 +283,9 @@ _RESOURCE_NAMES = {
     "ranking",
     "region",
     "round",
+    "sanction",
     "search",
+    "shop",
     "tournament",
     "transaction",
     "upgrade",
@@ -313,8 +339,11 @@ __all__ = [
     "BattleRankingEntityType",
     "BattleRankingSide",
     "EventType",
+    "ItemCode",
     "MercenaryAuctionStatus",
     "RankingType",
+    "SortBy",
+    "SortOrder",
     "TransactionType",
     "UpgradeType",
     "RequestPriority",
@@ -340,6 +369,7 @@ __all__ = [
     "CountryStrategicResources",
     "CountryTaxes",
     "CountryUnrest",
+    "CountryDiplomacy",
     "CursorPage",
     "Donation",
     "DonationTotals",
@@ -350,6 +380,7 @@ __all__ = [
     "Event",
     "GameConfig",
     "GameDates",
+    "Giveaway",
     "Government",
     "GovernmentDates",
     "Hit",
@@ -370,8 +401,12 @@ __all__ = [
     "Region",
     "ReprMixin",
     "Round",
+    "Sanction",
     "SearchResult",
     "SearchResults",
+    "ShopGift",
+    "ShopGiftGiver",
+    "ShopSubscribedUser",
     "SkillDetail",
     "Tournament",
     "TournamentMatch",
@@ -380,6 +415,7 @@ __all__ = [
     "TournamentTeam",
     "TradingOrder",
     "Transaction",
+    "UnrestContribution",
     "Upgrade",
     "User",
     "UserDates",
@@ -395,4 +431,5 @@ __all__ = [
     "Worker",
     "WorkerCount",
     "War",
+    "WarSide",
 ]

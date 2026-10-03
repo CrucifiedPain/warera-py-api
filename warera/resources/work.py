@@ -107,7 +107,7 @@ class WorkResource(BaseResource):
         if timezone is not None:
             kwargs["timezone"] = timezone
         raw = await self._get("work.getStatsByWorker", **kwargs)
-        return [WorkStats.model_validate(w) for w in raw]
+        return self._parse_stats_list(raw)
 
     @staticmethod
     def _parse_stats_list(raw: object) -> list[WorkStats]:

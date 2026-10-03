@@ -63,13 +63,14 @@ from .user import (
     UserSkills,
     UserStats,
 )
-from .war import War
+from .war import War, WarSide
 from .work_offer import WorkOffer
 from .work_stats import WorkStats
 from .worker import Worker, WorkerCount
 
 __all__ = [
     "War",
+    "WarSide",
     "ActionLog",
     "Alliance",
     "AllianceMemberCountry",

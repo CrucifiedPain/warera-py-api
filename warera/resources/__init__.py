@@ -32,6 +32,7 @@ from .tournament import TournamentResource
 from .transaction import TransactionResource
 from .upgrade import UpgradeResource
 from .user import UserResource
+from .war import WarResource
 from .work import WorkResource
 from .work_offer import WorkOfferResource
 from .worker import WorkerResource
@@ -71,6 +72,7 @@ __all__ = [
     "TransactionResource",
     "UpgradeResource",
     "UserResource",
+    "WarResource",
     "WorkResource",
     "WorkOfferResource",
     "WorkerResource",

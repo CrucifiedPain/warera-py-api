@@ -27,3 +27,10 @@ class WorkStats(BaseModel):
     automated_engine: float | None = Field(
         default=None, validation_alias=AliasChoices("automatedEngine", "automated_engine")
     )
+    worker_id: str | None = Field(
+        default=None, validation_alias=AliasChoices("workerId", "worker_id")
+    )
+    company_id: str | None = Field(
+        default=None, validation_alias=AliasChoices("companyId", "company_id")
+    )
+    production: float | None = None
