@@ -12,18 +12,34 @@ class ContributionResource(BaseResource):
     """
 
     async def get_country_unrest_contributions(
-        self, country_id: str
+        self,
+        country_id: str,
+        *,
+        page: int | None = None,
+        limit: int | None = None,
     ) -> list[UnrestContribution]:
         """Get the unrest contributions for a country."""
         raw = await self._get(
-            "contribution.getCountryUnrestContributions", countryId=country_id
+            "contribution.getCountryUnrestContributions",
+            countryId=country_id,
+            page=page,
+            limit=limit,
         )
         return self._parse_contributions(raw)
 
-    async def get_region_contributions(self, region_id: str) -> list[UnrestContribution]:
+    async def get_region_contributions(
+        self,
+        region_id: str,
+        *,
+        page: int | None = None,
+        limit: int | None = None,
+    ) -> list[UnrestContribution]:
         """Get the unrest contributions for a region."""
         raw = await self._get(
-            "contribution.getRegionContributions", regionId=region_id
+            "contribution.getRegionContributions",
+            regionId=region_id,
+            page=page,
+            limit=limit,
         )
         return self._parse_contributions(raw)
 

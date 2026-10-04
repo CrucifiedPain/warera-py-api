@@ -8,6 +8,8 @@ class SearchResource(BaseResource):
     """
     Endpoints:
       • search.searchAnything
+      • search.searchMus
+      • search.searchUsers
     """
 
     async def query(self, search_text: str) -> SearchResults:
@@ -48,11 +50,41 @@ class SearchResource(BaseResource):
         return SearchResults(results=results, total=len(results))
 
     async def search_mus(self, query: str) -> list[SearchResult]:
-        """Search military units."""
-        res = await self._http.get("search.searchMus", {"query": query})
-        return [SearchResult.parse_obj(r) for r in res]
+        """
+        Search military units by name.
+
+        Args:
+            query: The search text query.
+
+        Returns:
+            A list of SearchResult items representing matching military units.
+        """
+        raw = await self._get("search.searchMus", searchText=query)
+        if isinstance(raw, list):
+            return [
+                SearchResult.model_validate({"id": r, "type": "mu"})
+                if isinstance(r, str)
+                else SearchResult.model_validate(r)
+                for r in raw
+            ]
+        return []
 
     async def search_users(self, query: str) -> list[SearchResult]:
-        """Search users."""
-        res = await self._http.get("search.searchUsers", {"query": query})
-        return [SearchResult.parse_obj(r) for r in res]
+        """
+        Search users by name or username.
+
+        Args:
+            query: The search text query.
+
+        Returns:
+            A list of SearchResult items representing matching users.
+        """
+        raw = await self._get("search.searchUsers", searchText=query)
+        if isinstance(raw, list):
+            return [
+                SearchResult.model_validate({"id": r, "type": "user"})
+                if isinstance(r, str)
+                else SearchResult.model_validate(r)
+                for r in raw
+            ]
+        return []

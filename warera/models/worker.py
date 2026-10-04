@@ -27,4 +27,4 @@ class Worker(WareraModel):
 
 class WorkerCount(WareraModel):
     user_id: str | None = None
-    total: int | None = None
+    total: int | float | None = None

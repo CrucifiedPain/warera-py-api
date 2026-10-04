@@ -20,6 +20,7 @@ class ElectionResource(BaseResource):
         self,
         *,
         country_id: str | None = None,
+        party_id: str | None = None,
         limit: int = 20,
         cursor: str | None = None,
         direction: str | None = None,
@@ -33,6 +34,7 @@ class ElectionResource(BaseResource):
         self,
         *,
         country_id: str | None = None,
+        party_id: str | None = None,
         limit: int = 20,
         cursor: str | None = None,
         direction: str | None = None,
@@ -45,6 +47,7 @@ class ElectionResource(BaseResource):
         self,
         *,
         country_id: str | None = None,
+        party_id: str | None = None,
         limit: int = 20,
         cursor: str | None = None,
         direction: str | None = None,
@@ -53,10 +56,11 @@ class ElectionResource(BaseResource):
         cursor_end: str | None = None,
     ) -> CursorPage[Election] | AsyncIterator[Election]:
         """
-        Get elections (cursor-paginated), optionally filtered by country.
+        Get elections (cursor-paginated), optionally filtered by country or party.
 
         Args:
             country_id: Filter to elections in this country.
+            party_id:   Filter to elections for this party.
             direction:  ``"forward"`` (default) or ``"backward"`` pagination.
         """
         if auto_items:
@@ -73,6 +77,7 @@ class ElectionResource(BaseResource):
                     not in (
                         "self",
                         "auto_paginate",
+                        "auto_paginate_items",
                         "auto_items",
                         "max_pages",
                         "cursor_end",
@@ -84,6 +89,7 @@ class ElectionResource(BaseResource):
         raw = await self._get(
             "election.getElections",
             countryId=country_id,
+            partyId=party_id,
             limit=limit,
             cursor=cursor,
             direction=direction,
@@ -99,6 +105,13 @@ class ElectionResource(BaseResource):
         """Convenience: fetch all elections in a given country."""
         items = []
         async for item in await self.get_paginated(country_id=country_id, auto_items=True):
+            items.append(item)
+        return items
+
+    async def get_by_party(self, party_id: str) -> list[Election]:
+        """Convenience: fetch all elections for a given party."""
+        items = []
+        async for item in await self.get_paginated(party_id=party_id, auto_items=True):
             items.append(item)
         return items
 

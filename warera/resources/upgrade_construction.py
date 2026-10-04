@@ -3,61 +3,26 @@ from __future__ import annotations
 import typing
 from collections.abc import AsyncIterator
 
-from .._enums import UpgradeType
-from ..exceptions import WareraError
 from ..models.common import CursorPage
-from ..models.upgrade import Upgrade
 from ..models.upgrade_construction import UpgradeConstruction
 from ._base import BaseResource
 
 
-class UpgradeResource(BaseResource):
+class UpgradeConstructionResource(BaseResource):
     """
     Endpoints:
-      • upgrade.getUpgradeByTypeAndEntity
       • upgradeConstruction.getMapConstructions
       • upgradeConstruction.getRegionConstructions
       • upgradeConstruction.listConstructions
     """
 
-    async def get(
-        self,
-        upgrade_type: UpgradeType | str,
-        *,
-        region_id: str | None = None,
-        company_id: str | None = None,
-        mu_id: str | None = None,
-    ) -> Upgrade:
-        """
-        Get an upgrade by type and the entity it belongs to.
-
-        Exactly one of region_id, company_id, or mu_id must be provided
-        depending on the upgrade type:
-          • Region upgrades  (bunker, base, pacificationCenter, storage):  region_id
-          • Company upgrades (automatedEngine, breakRoom):                  company_id
-          • MU upgrades      (headquarters, dormitories):                   mu_id
-
-        Args:
-            upgrade_type:  The upgrade type. Use the UpgradeType enum.
-            region_id:     Region the upgrade belongs to.
-            company_id:    Company the upgrade belongs to.
-            mu_id:         Military unit the upgrade belongs to.
-        """
-        provided = sum(x is not None for x in (region_id, company_id, mu_id))
-        if provided == 0:
-            raise WareraError("upgrade.get requires exactly one of: region_id, company_id, mu_id")
-
-        raw = await self._get(
-            "upgrade.getUpgradeByTypeAndEntity",
-            upgradeType=upgrade_type,
-            regionId=region_id,
-            companyId=company_id,
-            muId=mu_id,
-        )
-        return Upgrade.model_validate(raw)
-
     async def get_map_constructions(self) -> list[UpgradeConstruction]:
-        """Convenience: retrieve every in-progress region upgrade project across the map."""
+        """
+        Retrieve every in-progress region-upgrade construction project across the whole map.
+
+        No parameters required. Returns an empty list when nothing is currently under
+        construction anywhere.
+        """
         raw = await self._get("upgradeConstruction.getMapConstructions")
         if isinstance(raw, list):
             return [
@@ -76,7 +41,14 @@ class UpgradeResource(BaseResource):
         return []
 
     async def get_region_constructions(self, region_id: str) -> list[UpgradeConstruction]:
-        """Convenience: retrieve in-progress upgrade projects for a specific region."""
+        """
+        Retrieve every in-progress upgrade construction project for a specific region.
+
+        Args:
+            region_id: Unique identifier of the region.
+
+        Returns an empty list when that region has nothing currently under construction.
+        """
         raw = await self._get(
             "upgradeConstruction.getRegionConstructions",
             regionId=region_id,
@@ -135,7 +107,19 @@ class UpgradeResource(BaseResource):
         cursor_end: str | None = None,
     ) -> CursorPage[UpgradeConstruction] | AsyncIterator[UpgradeConstruction]:
         """
-        Convenience: retrieve a paginated list of upgrade constructions filtered by region or country.
+        Retrieve a paginated list of upgrade construction projects filtered by region or country.
+
+        At least one of region_id or country_id must be provided.
+        Cursor pagination uses the construction document's own Mongo _id.
+
+        Args:
+            region_id:   Filter by region ID.
+            country_id:  Filter by country ID.
+            limit:       Maximum number of items per page.
+            cursor:      Pagination cursor (the Mongo _id from the previous page).
+            auto_items:  When True, yields items across all pages.
+            max_pages:   Max number of pages to fetch when auto_items=True.
+            cursor_end:  Optional cursor to stop pagination at.
         """
         if region_id is None and country_id is None:
             raise ValueError("At least one of region_id or country_id must be provided")

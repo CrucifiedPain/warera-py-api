@@ -151,9 +151,24 @@ class BattleResource(BaseResource):
             **kwargs,
         )
 
-    async def get_ranking(self, battle_id: str) -> dict[str, typing.Any]:
+    async def get_ranking(
+        self,
+        battle_id: str | None = None,
+        *,
+        data_type: str = "damage",
+        type: str = "user",
+        side: str = "attacker",
+        round_id: str | None = None,
+        war_id: str | None = None,
+    ) -> dict[str, typing.Any]:
         """Get battle ranking."""
-        import typing
-
-        res = await self._http.get("battleRanking.getRanking", {"battleId": battle_id})
-        return typing.cast(dict[str, typing.Any], res)
+        raw = await self._get(
+            "battleRanking.getRanking",
+            battleId=battle_id,
+            dataType=data_type,
+            type=type,
+            side=side,
+            roundId=round_id,
+            warId=war_id,
+        )
+        return typing.cast(dict[str, typing.Any], raw if isinstance(raw, dict) else {"items": raw})

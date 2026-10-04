@@ -289,6 +289,7 @@ class WareraClient:
         self.ranking = _wrap_resource(self._async_client.ranking)
         self.transaction = _wrap_resource(self._async_client.transaction)
         self.upgrade = _wrap_resource(self._async_client.upgrade)
+        self.upgrade_construction = _wrap_resource(self._async_client.upgrade_construction)
         self.article = _wrap_resource(self._async_client.article)
         self.search = _wrap_resource(self._async_client.search)
         self.game_config = _wrap_resource(self._async_client.game_config)
@@ -409,6 +410,7 @@ _RESOURCE_NAMES = {
     "tournament",
     "transaction",
     "upgrade",
+    "upgrade_construction",
     "user",
     "war",
     "work",

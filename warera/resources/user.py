@@ -174,7 +174,7 @@ class UserResource(BaseResource):
 
         return all_users
 
-    async def get_users_by_country(self, country_id: str) -> list[User]:
-        """Get users by country."""
-        res = await self._http.get("user.getUsersByCountry", {"countryId": country_id})
-        return [User.parse_obj(r) for r in res]
+    async def get_users_by_country(self, country_id: str) -> list[UserLite]:
+        """Get users by country (convenience helper returning the first page items)."""
+        page = await self.get_by_country(country_id)
+        return page.items

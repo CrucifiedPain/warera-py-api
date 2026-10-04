@@ -51,6 +51,7 @@ from .tournament import (
 )
 from .transaction import Transaction
 from .upgrade import Upgrade
+from .upgrade_construction import UpgradeConstruction
 from .user import (
     RankingDetail,
     SkillDetail,
@@ -140,6 +141,7 @@ __all__ = [
     "Transaction",
     "UnrestContribution",
     "Upgrade",
+    "UpgradeConstruction",
     "User",
     "UserDates",
     "UserLeveling",

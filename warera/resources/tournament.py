@@ -17,6 +17,11 @@ class TournamentResource(BaseResource):
       • tournamentTeam.getByTournamentId
     """
 
+    async def get(self, tournament_id: str) -> Tournament:
+        """Get a tournament by its unique ID."""
+        raw = await self._get("tournament.getById", tournamentId=tournament_id)
+        return Tournament.model_validate(raw)
+
     async def get_last_tournament(self) -> Tournament:
         """Get the latest tournament details."""
         raw = await self._get("tournament.getLastTournament")
@@ -54,5 +59,4 @@ class TournamentResource(BaseResource):
 
     async def get_by_id(self, tournament_id: str) -> Tournament:
         """Get tournament by ID."""
-        res = await self._get("tournament.getById", id=tournament_id)
-        return Tournament.model_validate(res)
+        return await self.get(tournament_id)

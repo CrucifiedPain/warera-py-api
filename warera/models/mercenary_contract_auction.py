@@ -6,33 +6,33 @@ from .common import WareraModel
 
 
 class MercenaryContractAuctionBid(WareraModel):
-    bid_at: str
-    mu: str
-    payout: int | float
-    per_k: int | float
-    user: str
+    bid_at: str | None = None
+    mu: str | None = None
+    payout: int | float | None = None
+    per_k: int | float | None = None
+    user: str | None = None
 
 
 class MercenaryContractAuction(WareraModel):
     v: int | None = Field(default=None, alias="__v")
-    battle: str
-    bids: list[MercenaryContractAuctionBid]
-    budget: int | float
-    country: str
-    created_at: str
-    created_by: str
-    current_payout: int | float
-    current_per_k: int | float
+    battle: str | None = None
+    bids: list[MercenaryContractAuctionBid] = Field(default_factory=list)
+    budget: int | float | None = None
+    country: str | None = None
+    created_at: str | None = None
+    created_by: str | None = None
+    current_payout: int | float | None = None
+    current_per_k: int | float | None = None
     current_winner: str | None = None
     current_winner_user: str | None = None
-    duration: int
-    expires_at: str
-    for_country: str
-    for_country_side: str
-    initial_per_k: int | float
-    minimum_damage: int | float
-    professionals_only: bool
-    round: str
-    round_number: int
-    status: str
-    updated_at: str
+    duration: int | None = None
+    expires_at: str | None = None
+    for_country: str | None = None
+    for_country_side: str | None = None
+    initial_per_k: int | float | None = None
+    minimum_damage: int | float | None = None
+    professionals_only: bool | None = None
+    round: str | None = None
+    round_number: int | None = None
+    status: str | None = None
+    updated_at: str | None = None

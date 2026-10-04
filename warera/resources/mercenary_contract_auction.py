@@ -20,8 +20,14 @@ class MercenaryContractAuctionResource(BaseResource):
         self,
         *,
         country_id: str | None = None,
+        for_country: str | None = None,
+        for_country_side: str | None = None,
         battle_id: str | None = None,
         status: MercenaryAuctionStatus | str | None = None,
+        professionals_only: bool | None = None,
+        sort_by: str | None = None,
+        sort_order: str | None = None,
+        page: int | None = None,
         limit: int = 10,
         cursor: str | None = None,
         auto_items: typing.Literal[True],
@@ -34,8 +40,14 @@ class MercenaryContractAuctionResource(BaseResource):
         self,
         *,
         country_id: str | None = None,
+        for_country: str | None = None,
+        for_country_side: str | None = None,
         battle_id: str | None = None,
         status: MercenaryAuctionStatus | str | None = None,
+        professionals_only: bool | None = None,
+        sort_by: str | None = None,
+        sort_order: str | None = None,
+        page: int | None = None,
         limit: int = 10,
         cursor: str | None = None,
         auto_items: typing.Literal[False] = False,
@@ -47,8 +59,14 @@ class MercenaryContractAuctionResource(BaseResource):
         self,
         *,
         country_id: str | None = None,
+        for_country: str | None = None,
+        for_country_side: str | None = None,
         battle_id: str | None = None,
         status: MercenaryAuctionStatus | str | None = None,
+        professionals_only: bool | None = None,
+        sort_by: str | None = None,
+        sort_order: str | None = None,
+        page: int | None = None,
         limit: int = 10,
         cursor: str | None = None,
         auto_items: bool = False,
@@ -56,8 +74,25 @@ class MercenaryContractAuctionResource(BaseResource):
         cursor_end: str | None = None,
     ) -> CursorPage[MercenaryContractAuction] | AsyncIterator[MercenaryContractAuction]:
         """
-        Get mercenary contract auctions (cursor-paginated).
+        Get mercenary contract auctions (paginated).
+
+        Args:
+            country_id:         Alias for for_country (backward compatibility).
+            for_country:        Country ID the auction is for.
+            for_country_side:   Side ('attacker' or 'defender').
+            battle_id:          Battle ID to filter auctions.
+            status:             Auction status (e.g. 'active', 'completed').
+            professionals_only: Filter by professional mercenaries only.
+            sort_by:            Sort field.
+            sort_order:         Sort direction ('asc' or 'desc').
+            page:               Page number.
+            limit:              Number of items per page.
+            cursor:             Cursor for cursor-based pagination.
+            auto_items:         Yield all items across pages when True.
+            max_pages:          Max pages to fetch with auto_items.
+            cursor_end:         Stop pagination at this cursor.
         """
+        target_country = for_country or country_id
         if auto_items:
             from .._pagination import auto_paginate_items
 
@@ -66,17 +101,27 @@ class MercenaryContractAuctionResource(BaseResource):
                 max_pages=max_pages,
                 cursor=cursor,
                 cursor_end=cursor_end,
-                country_id=country_id,
+                for_country=target_country,
+                for_country_side=for_country_side,
                 battle_id=battle_id,
                 status=status,
+                professionals_only=professionals_only,
+                sort_by=sort_by,
+                sort_order=sort_order,
+                page=page,
                 limit=limit,
             )
 
         raw = await self._get(
             "mercenaryContractAuction.getPaginatedAuctions",
-            countryId=country_id,
+            forCountry=target_country,
+            forCountrySide=for_country_side,
             battleId=battle_id,
             status=status,
+            professionalsOnly=professionals_only,
+            sortBy=sort_by,
+            sortOrder=sort_order,
+            page=page,
             limit=limit,
             cursor=cursor,
         )

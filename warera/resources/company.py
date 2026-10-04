@@ -223,8 +223,9 @@ class CompanyResource(BaseResource):
 
     async def get_recommended_regions(
         self,
-        item_code: str,
+        item_code: str | None = None,
         *,
+        count: int | None = None,
         include_deposit: bool = True,
     ) -> list[RecommendedRegion]:
         """
@@ -232,6 +233,7 @@ class CompanyResource(BaseResource):
 
         Args:
             item_code:       Item code to check (e.g. ``"iron"``, ``"weapon_q1"``).
+            count:           Maximum number of regions to return (min 1).
             include_deposit: Whether to include deposit bonuses in the ranking.
 
         Returns:
@@ -240,13 +242,18 @@ class CompanyResource(BaseResource):
         raw = await self._get(
             "company.getRecommendedRegionIdsByItemCode",
             itemCode=item_code,
+            count=count,
             includeDeposit=include_deposit,
         )
         if isinstance(raw, list):
-            return [RecommendedRegion(r) for r in raw]
+            return [RecommendedRegion(r) for r in raw if isinstance(r, dict)]
         if isinstance(raw, dict):
             items = raw.get("items", raw.get("data", []))
-            return [RecommendedRegion(r) for r in (items if isinstance(items, list) else [])]
+            return [
+                RecommendedRegion(r)
+                for r in (items if isinstance(items, list) else [])
+                if isinstance(r, dict)
+            ]
         return []
 
     async def get_production_bonus(self, company_id: str) -> CompanyProductionBonus:
@@ -343,11 +350,12 @@ class CompanyResource(BaseResource):
         companies = await self.get_many(all_ids, concurrency=concurrency)
         return [c for c in companies if c is not None]
 
-    async def get_recommended_region_ids_by_item_code(self, item_code: str) -> list[str]:
-        """Get recommended region IDs by item code."""
-        import typing
-
-        res = await self._http.get(
-            "company.getRecommendedRegionIdsByItemCode", {"itemCode": item_code}
-        )
-        return typing.cast(list[str], res)
+    async def get_recommended_region_ids_by_item_code(
+        self,
+        item_code: str | None = None,
+        *,
+        count: int | None = None,
+    ) -> list[str]:
+        """Get recommended region IDs for producing a given item."""
+        regions = await self.get_recommended_regions(item_code, count=count)
+        return [r.region_id for r in regions if r.region_id]

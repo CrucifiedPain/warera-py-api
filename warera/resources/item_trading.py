@@ -86,19 +86,35 @@ class ItemTradingResource(BaseResource):
             items = []
         return [TradingOrder.model_validate(o) for o in items]
 
-    async def get_public_orders_by_owner(self, country_id: str) -> PublicOrdersSummary:
+    async def get_public_orders_by_owner(
+        self,
+        country_id: str | None = None,
+        *,
+        user_id: str | None = None,
+        mu_id: str | None = None,
+        party_id: str | None = None,
+    ) -> PublicOrdersSummary:
         """
-        Get all public trading orders for a country's market, grouped by
-        buy/sell and with aggregated statistics.
+        Get public trading orders for a country, user, military unit, or party,
+        grouped by buy/sell and with aggregated statistics.
 
         Args:
-            country_id: The country whose public market orders to fetch.
+            country_id: Filter by country.
+            user_id:    Filter by user.
+            mu_id:      Filter by military unit.
+            party_id:   Filter by political party.
 
         Returns:
             A :class:`PublicOrdersSummary` containing buy orders, sell orders,
             combined orders, total invested currency, and per-item sell quantities.
         """
-        raw = await self._get("tradingOrder.getPublicOrdersByOwner", countryId=country_id)
+        raw = await self._get(
+            "tradingOrder.getPublicOrdersByOwner",
+            countryId=country_id,
+            userId=user_id,
+            muId=mu_id,
+            partyId=party_id,
+        )
         if isinstance(raw, dict):
             return PublicOrdersSummary(raw)
         return PublicOrdersSummary({})

@@ -123,6 +123,7 @@ from .models import (
     Transaction,
     UnrestContribution,
     Upgrade,
+    UpgradeConstruction,
     User,
     UserDates,
     UserLeveling,
@@ -175,6 +176,7 @@ if typing.TYPE_CHECKING:
     from .resources.tournament import TournamentResource
     from .resources.transaction import TransactionResource
     from .resources.upgrade import UpgradeResource
+    from .resources.upgrade_construction import UpgradeConstructionResource
     from .resources.user import UserResource
     from .resources.war import WarResource
     from .resources.work import WorkResource
@@ -214,6 +216,7 @@ if typing.TYPE_CHECKING:
     tournament: TournamentResource
     transaction: TransactionResource
     upgrade: UpgradeResource
+    upgrade_construction: UpgradeConstructionResource
     user: UserResource
     work: WorkResource
     work_offer: WorkOfferResource
@@ -289,6 +292,7 @@ _RESOURCE_NAMES = {
     "tournament",
     "transaction",
     "upgrade",
+    "upgrade_construction",
     "user",
     "work",
     "work_offer",
@@ -417,6 +421,7 @@ __all__ = [
     "Transaction",
     "UnrestContribution",
     "Upgrade",
+    "UpgradeConstruction",
     "User",
     "UserDates",
     "UserLeveling",

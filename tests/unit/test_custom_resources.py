@@ -22,6 +22,7 @@ from warera.resources.party import PartyResource
 from warera.resources.sanction import SanctionResource
 from warera.resources.shop import ShopResource
 from warera.resources.tournament import TournamentResource
+from warera.resources.upgrade_construction import UpgradeConstructionResource
 from warera.resources.work import WorkResource
 from warera.resources.work_offer import WorkOfferResource
 from warera.resources.worker import WorkerResource
@@ -866,4 +867,295 @@ async def test_game_stat_get_world_development():
     dev = await resource.get_world_development()
 
     assert dev["totalDevelopment"] == 12345.6
+
+
+# ---------------------------------------------------------------------------
+# Upgrade Construction
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_upgrade_construction_get_map_constructions():
+    raw = [
+        {"_id": "uc1", "regionId": "r1", "countryId": "c1", "upgradeType": "bunker", "level": 2}
+    ]
+    http = _mock_http(raw)
+    resource = UpgradeConstructionResource(http)
+    constructions = await resource.get_map_constructions()
+
+    http.get.assert_called_once_with("upgradeConstruction.getMapConstructions", {})
+    assert len(constructions) == 1
+    assert constructions[0].id == "uc1"
+    assert constructions[0].region_id == "r1"
+    assert constructions[0].country_id == "c1"
+    assert constructions[0].upgrade_type == "bunker"
+    assert constructions[0].level == 2
+
+
+@pytest.mark.asyncio
+async def test_upgrade_construction_get_region_constructions():
+    raw = [{"_id": "uc2", "region": "r2", "upgradeType": "storage"}]
+    http = _mock_http(raw)
+    resource = UpgradeConstructionResource(http)
+    constructions = await resource.get_region_constructions("r2")
+
+    http.get.assert_called_once_with(
+        "upgradeConstruction.getRegionConstructions", {"regionId": "r2"}
+    )
+    assert len(constructions) == 1
+    assert constructions[0].id == "uc2"
+    assert constructions[0].region_id == "r2"
+
+
+@pytest.mark.asyncio
+async def test_upgrade_construction_list_constructions():
+    raw = {
+        "items": [{"_id": "uc3", "regionId": "r3", "countryId": "c3"}],
+        "nextCursor": "uc3",
+        "hasMore": False,
+    }
+    http = _mock_http(raw)
+    resource = UpgradeConstructionResource(http)
+    page = await resource.list_constructions(region_id="r3", limit=10)
+
+    http.get.assert_called_once_with(
+        "upgradeConstruction.listConstructions", {"regionId": "r3", "limit": 10}
+    )
+    assert len(page.items) == 1
+    assert page.items[0].id == "uc3"
+
+
+@pytest.mark.asyncio
+async def test_upgrade_resource_construction_helpers():
+    from warera.resources.upgrade import UpgradeResource
+
+    raw = [{"_id": "uc4", "regionId": "r4"}]
+    http = _mock_http(raw)
+    resource = UpgradeResource(http)
+
+    map_c = await resource.get_map_constructions()
+    assert len(map_c) == 1
+    assert map_c[0].id == "uc4"
+
+    region_c = await resource.get_region_constructions("r4")
+    assert len(region_c) == 1
+    assert region_c[0].id == "uc4"
+
+
+# ---------------------------------------------------------------------------
+# Tournament
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_tournament_get_and_get_by_id():
+    raw = {"_id": "tourney1", "status": "active"}
+    http = _mock_http(raw)
+    resource = TournamentResource(http)
+
+    t1 = await resource.get("tourney1")
+    http.get.assert_called_with("tournament.getById", {"tournamentId": "tourney1"})
+    assert t1.id == "tourney1"
+
+    t2 = await resource.get_by_id("tourney1")
+    assert t2.id == "tourney1"
+
+
+# ---------------------------------------------------------------------------
+# Search
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_search_mus_and_users():
+    from warera.resources.search import SearchResource
+
+    raw_ids = ["id1", "id2"]
+    http = _mock_http(raw_ids)
+    resource = SearchResource(http)
+
+    mu_results = await resource.search_mus("Alpha")
+    http.get.assert_called_with("search.searchMus", {"searchText": "Alpha"})
+    assert len(mu_results) == 2
+    assert mu_results[0].id == "id1"
+    assert mu_results[0].type == "mu"
+
+    user_results = await resource.search_users("Bob")
+    http.get.assert_called_with("search.searchUsers", {"searchText": "Bob"})
+    assert len(user_results) == 2
+    assert user_results[0].id == "id1"
+    assert user_results[0].type == "user"
+
+
+# ---------------------------------------------------------------------------
+# Mercenary Contract Auction
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_mercenary_contract_auction_filters():
+    from warera.resources.mercenary_contract_auction import MercenaryContractAuctionResource
+
+    raw = {
+        "items": [
+            {
+                "_id": "auc1",
+                "battle": "b1",
+                "country": "c1",
+                "forCountry": "c1",
+                "forCountrySide": "attacker",
+                "duration": 5,
+                "expiresAt": "2026-09-17T11:39:29.161Z",
+                "status": "active",
+                "createdAt": "2026-09-17T11:34:29.166Z",
+                "updatedAt": "2026-09-17T11:34:29.166Z",
+                "bids": [],
+            }
+        ]
+    }
+    http = _mock_http(raw)
+    resource = MercenaryContractAuctionResource(http)
+
+    page = await resource.get_paginated_auctions(
+        for_country="c1",
+        for_country_side="attacker",
+        professionals_only=True,
+        sort_by="budget",
+        sort_order="desc",
+        page=2,
+    )
+    http.get.assert_called_once_with(
+        "mercenaryContractAuction.getPaginatedAuctions",
+        {
+            "forCountry": "c1",
+            "forCountrySide": "attacker",
+            "professionalsOnly": True,
+            "sortBy": "budget",
+            "sortOrder": "desc",
+            "page": 2,
+            "limit": 10,
+        },
+    )
+    assert len(page.items) == 1
+    assert page.items[0].id == "auc1"
+    assert page.items[0].round is None
+
+
+# ---------------------------------------------------------------------------
+# User / Election / Trading / Contribution / Company / Ranking / Battle
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_user_get_users_by_country():
+    from warera.resources.user import UserResource
+
+    raw = {"items": [{"_id": "u1", "username": "hero"}]}
+    http = _mock_http(raw)
+    resource = UserResource(http)
+
+    users = await resource.get_users_by_country("c1")
+    http.get.assert_called_once_with("user.getUsersByCountry", {"countryId": "c1", "limit": 10})
+    assert len(users) == 1
+    assert users[0].id == "u1"
+    assert users[0].username == "hero"
+
+
+@pytest.mark.asyncio
+async def test_election_party_filter_and_helper():
+    raw = {"items": [{"_id": "elec1"}]}
+    http = _mock_http(raw)
+    resource = ElectionResource(http)
+
+    page = await resource.get_paginated(party_id="p1")
+    http.get.assert_called_with("election.getElections", {"partyId": "p1", "limit": 20})
+    assert len(page.items) == 1
+
+    by_party = await resource.get_by_party("p1")
+    assert len(by_party) == 1
+    assert by_party[0].id == "elec1"
+
+
+@pytest.mark.asyncio
+async def test_item_trading_public_orders_owners():
+    raw = {"buyOrders": [], "sellOrders": []}
+    http = _mock_http(raw)
+    resource = ItemTradingResource(http)
+
+    await resource.get_public_orders_by_owner(user_id="u1", mu_id="mu1", party_id="p1")
+    http.get.assert_called_once_with(
+        "tradingOrder.getPublicOrdersByOwner",
+        {"userId": "u1", "muId": "mu1", "partyId": "p1"},
+    )
+
+
+@pytest.mark.asyncio
+async def test_contribution_pagination():
+    raw = [{"_id": "contrib1", "user": "u1", "amount": 100}]
+    http = _mock_http(raw)
+    resource = ContributionResource(http)
+
+    c1 = await resource.get_country_unrest_contributions("c1", page=2, limit=25)
+    http.get.assert_called_with(
+        "contribution.getCountryUnrestContributions",
+        {"countryId": "c1", "page": 2, "limit": 25},
+    )
+    assert len(c1) == 1
+
+    c2 = await resource.get_region_contributions("r1", page=1, limit=50)
+    http.get.assert_called_with(
+        "contribution.getRegionContributions",
+        {"regionId": "r1", "page": 1, "limit": 50},
+    )
+    assert len(c2) == 1
+
+
+@pytest.mark.asyncio
+async def test_company_recommended_regions_count():
+    raw = [{"regionId": "r1", "bonus": 20.0}]
+    http = _mock_http(raw)
+    resource = CompanyResource(http)
+
+    regions = await resource.get_recommended_regions("iron", count=5)
+    http.get.assert_called_with(
+        "company.getRecommendedRegionIdsByItemCode",
+        {"itemCode": "iron", "count": 5, "includeDeposit": True},
+    )
+    assert len(regions) == 1
+    assert regions[0].region_id == "r1"
+
+    ids = await resource.get_recommended_region_ids_by_item_code("iron", count=5)
+    assert ids == ["r1"]
+
+
+@pytest.mark.asyncio
+async def test_ranking_and_battle_ranking():
+    from warera.resources.battle import BattleResource
+    from warera.resources.ranking import RankingResource
+
+    raw_ranking = {"items": [{"_id": "rk1", "rank": 1, "value": 1000}]}
+    http = _mock_http(raw_ranking)
+    ranking_resource = RankingResource(http)
+
+    entries = await ranking_resource.get_ranking("userWealth")
+    http.get.assert_called_with("ranking.getRanking", {"rankingType": "userWealth"})
+    assert len(entries) == 1
+
+    battle_resource = BattleResource(http)
+    raw_battle_rk = {"items": [{"rank": 1, "damage": 50000}]}
+    http.get = AsyncMock(return_value=raw_battle_rk)
+
+    rk = await battle_resource.get_ranking(
+        "b1", data_type="damage", type="user", side="attacker"
+    )
+    http.get.assert_called_with(
+        "battleRanking.getRanking",
+        {
+            "battleId": "b1",
+            "dataType": "damage",
+            "type": "user",
+            "side": "attacker",
+        },
+    )
+    assert "items" in rk
 

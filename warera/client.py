@@ -62,6 +62,7 @@ from .resources.shop import ShopResource
 from .resources.tournament import TournamentResource
 from .resources.transaction import TransactionResource
 from .resources.upgrade import UpgradeResource
+from .resources.upgrade_construction import UpgradeConstructionResource
 from .resources.user import UserResource
 from .resources.war import WarResource
 from .resources.work import WorkResource
@@ -229,6 +230,7 @@ class WareraClient:
         self.ranking = RankingResource(self._http)
         self.transaction = TransactionResource(self._http)
         self.upgrade = UpgradeResource(self._http)
+        self.upgrade_construction = UpgradeConstructionResource(self._http)
         self.article = ArticleResource(self._http)
         self.search = SearchResource(self._http)
         self.sanction = SanctionResource(self._http)

@@ -67,6 +67,7 @@ class EventResource(BaseResource):
                     not in (
                         "self",
                         "auto_paginate",
+                        "auto_paginate_items",
                         "auto_items",
                         "max_pages",
                         "cursor_end",
